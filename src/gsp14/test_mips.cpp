@@ -83,6 +83,9 @@ int main(){
 
 result_set test_add(mips_mem_h, mips_cpu_h){
 	result_set results;
+	results.passed = 0;
+
+
 	return results;
 }
 
