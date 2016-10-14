@@ -12,6 +12,8 @@ struct mips_cpu_impl
 	uint32_t pc;
 	uint32_t regs[32];
 	mips_mem_h mem;
+	unsigned debugLevel;
+	char *debugDest;
 };
 
 mips_cpu_h mips_cpu_create(mips_mem_h mem)
@@ -22,7 +24,10 @@ mips_cpu_h mips_cpu_create(mips_mem_h mem)
 	for (unsigned i=0;i<32;i++){
 		state->regs[i]=0;
 	}
+
+	state->debugLevel = 0;
 	state->mem=mem;
+	state->debugDest=NULL;
 
 	return state;
 }
@@ -32,7 +37,14 @@ mips_cpu_h mips_cpu_create(mips_mem_h mem)
 	input of the CPU core.
 */
 mips_error mips_cpu_reset(mips_cpu_h state){
-	mips_error err;
+	mips_error err=mips_Success;
+
+	state->pc =0;
+	for (unsigned i=0;i<32;i++){
+			state->regs[i]=0;
+		}
+
+
 	return err;
 }
 
@@ -42,7 +54,11 @@ mips_error mips_cpu_get_register(
 	unsigned index,		//!< Index from 0 to 31
 	uint32_t *value		//!< Where to write the value to
 ){
-	mips_error err;
+	mips_error err=mips_Success;
+	*value = state->regs[index];
+
+	// if there's an error do this: err = mips_ErrorFileReadError;
+
 	return err;
 }
 
@@ -52,7 +68,9 @@ mips_error mips_cpu_set_register(
 	unsigned index,		//!< Index from 0 to 31
 	uint32_t value		//!< New value to write into register file
 ){
-	mips_error err;
+	mips_error err=mips_Success;
+	state->regs[index]=value;
+	// if there's an error do this: err = mips_ErrorFileWriteError
 	return err;
 }
 
@@ -67,7 +85,9 @@ mips_error mips_cpu_set_pc(
 	mips_cpu_h state,	//!< Valid (non-empty) handle to a CPU
 	uint32_t pc			//!< Address of the next instruction to exectute.
 ){
-	mips_error err;
+	mips_error err=mips_Success;
+	state->pc = pc;
+	// if there's an error do this: err = mips_ErrorFileWriteError
 	return err;
 }
 
@@ -79,7 +99,9 @@ mips_error mips_cpu_get_pc(
 	mips_cpu_h state,	//!< Valid (non-empty) handle to a CPU
 	uint32_t *pc		//!< Where to write the byte address too
 ){
-	mips_error err;
+	mips_error err=mips_Success;
+	*pc = state->pc;
+
 	return err;
 }
 
@@ -92,7 +114,7 @@ mips_error mips_cpu_get_pc(
 
 		uint32_t pcOrig, pcGot;
 		mips_cpu_get_pc(cpu, &pcOrig);
-		mips_error err=mips_cpu_step(cpu);
+		mips_error err=mips_Success=mips_cpu_step(cpu);
 		if(err!=mips_Success){
 			mips_cpu_get_pc(cpu, &pcGot);
 			assert(pcOrig==pcGot);
@@ -106,7 +128,16 @@ mips_error mips_cpu_get_pc(
 mips_error mips_cpu_step(
 	mips_cpu_h state	//! Valid (non-empty) handle to a CPU
 ){
-	mips_error err;
+	uint32_t pcOrig, pcGot;
+	mips_cpu_get_pc(state, &pcOrig);
+	mips_error err=mips_Success;
+	err = mips_cpu_step(state);
+	if(err!=mips_Success){
+		mips_cpu_get_pc(state,&pcGot);
+		//assert(pcOrig==pcGot);
+		//assert(mips_cpu_step(state)==err);
+	}
+
 	return err;
 }
 
@@ -170,7 +201,7 @@ mips_error mips_cpu_step(
 		// Run lots of instructions until the CPU reports an error.
 		// The implementation can write lots of useful information to
 		// the file
-		mips_error err=mips_Success;
+		mips_error err=mips_Success=mips_Success;
 		while(!err) {
 			mips_cpu_step(cpu);
 		};
@@ -186,7 +217,8 @@ mips_error mips_cpu_step(
 	such as the current PC and registers. Up to you.
 */
 mips_error mips_cpu_set_debug_level(mips_cpu_h state, unsigned level, FILE *dest){
-	mips_error err;
+	mips_error err=mips_Success;
+
 	return err;
 }
 
@@ -216,5 +248,7 @@ mips_error mips_cpu_set_debug_level(mips_cpu_h state, unsigned level, FILE *dest
 		h=0;    // Does nothing here, might could stop other errors
 */
 void mips_cpu_free(mips_cpu_h state){
+	mips_cpu_reset(state);
+	mips_mem_free(state->mem);
 
 }
