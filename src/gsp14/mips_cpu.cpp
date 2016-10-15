@@ -11,6 +11,7 @@
 #include <sstream>
 #include <assert.h>
 #include <byteswap.h>
+#include "shared.h"
 
 using namespace std;
 
@@ -165,6 +166,7 @@ mips_error mips_cpu_step(
 	// Read the memory location defined by PC
 	uint32_t val_b, val_l;
 	mips_error err = mips_mem_read(state->mem, state->pc,4,(uint8_t*)&val_b);
+
 	// If there is an error, return err.
 	if (err!=mips_Success){
 		return err;
@@ -174,18 +176,17 @@ mips_error mips_cpu_step(
 	if (state->debugLevel){
 			fprintf(state->debugDest, "%d read from memory, converted to %d.\n",val_b, val_l);
 		}
-	// Determine whether R, I, or J type.
+	// Decode the opcode
 	uint8_t opcode = val_b>>26;
-	if (2<=opcode<=3){
-		// J-type
-	}
-	else
-
+	string op;
+	op = opcode_to_str.at(opcode);
 	// If there is an error, return err.
+	if (op=="ni"){err=mips_ErrorNotImplemented;}
+	else if (op=="na") {err = mips_ExceptionInvalidInstruction;}
 	if (err!=mips_Success){
 		return err;
 	}
-	// Execute
+	// Execute the instruction...
 	// If there is an error, return err.
 	if (err!=mips_Success){
 		return err;

@@ -10,10 +10,9 @@
 #include <string>
 #include "string.h"
 #include <iostream>
-#include <map>
 #include <sstream>
 #include "test_mips_gsp14.h"
-#include "shared.cpp"
+#include "shared.h"
 
 using namespace std;
 
@@ -70,6 +69,7 @@ map<int, pFunc> testMap = {
 		{3,&test_addiu}*/
 };
 
+map<string, uint8_t> str_to_opcode;
 
 void set_debug_level(int argc, char* argv[],mips_cpu_h cpu);
 

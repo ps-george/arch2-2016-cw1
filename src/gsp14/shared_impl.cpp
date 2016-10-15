@@ -1,24 +1,12 @@
 /*
- * shared.cpp
+ * shared_impl.cpp
  *
  *  Created on: 15 Oct 2016
  *      Author: big-g
  */
-
 #include <map>
-#include <string>
-#include <utility>
 
-using namespace std;
-
-/*!
- * J-type if 2 or 3.
- * R-type if 0.
- * I-type if anything else.
- */
-map<string, uint8_t> str_to_opcode;
-
-map<uint8_t, string> opcode_to_str{
+const std::map<uint8_t, std::string> opcode_to_str{
 	{0x00,"R"}, //! \todo
 	{0x01,"BCND"}, //! \todo
 	{0x02,"J"}, //! \todo
@@ -84,4 +72,5 @@ map<uint8_t, string> opcode_to_str{
 	{0x3e,"nv"},
 	{0x3f,"nv"}
 };
+
 
