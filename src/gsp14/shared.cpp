@@ -19,22 +19,22 @@ using namespace std;
 map<string, uint8_t> str_to_opcode;
 
 map<uint8_t, string> opcode_to_str{
-	{0x00,"R"},
-	{0x01,"B"},
-	{0x02,"J"},
-	{0x03,"JAL"},
-	{0x04,"BEQ"},
-	{0x05,"BNE"},
-	{0x06,"BLEZ"},
-	{0x07,"BGTZ"},
-	{0x08,"ADDI"},
-	{0x09,"ADDIU"},
-	{0x0a,"SLTI"},
-	{0x0b,"SLTIU"},
-	{0x0c,"ANDI"},
-	{0x0d,"ORI"},
-	{0x0e,"XORI"},
-	{0x0f,"LUI"},
+	{0x00,"R"}, //! \todo
+	{0x01,"BCND"}, //! \todo
+	{0x02,"J"}, //! \todo
+	{0x03,"JAL"}, //! \todo
+	{0x04,"BEQ"}, //! \todo
+	{0x05,"BNE"}, //! \todo
+	{0x06,"BLEZ"}, //! \todo
+	{0x07,"BGTZ"}, //! \todo
+	{0x08,"ADDI"}, //! \todo
+	{0x09,"ADDIU"}, //! \todo
+	{0x0a,"SLTI"}, //! \todo
+	{0x0b,"SLTIU"}, //! \todo
+	{0x0c,"ANDI"},//! \todo
+	{0x0d,"ORI"}, //! \todo
+	{0x0e,"XORI"}, //! \todo
+	{0x0f,"LUI"}, //! \todo
 	{0x10,"ni"},
 	{0x11,"ni"},
 	{0x12,"ni"},
@@ -51,21 +51,21 @@ map<uint8_t, string> opcode_to_str{
 	{0x1d,"nv"},
 	{0x1e,"nv"},
 	{0x1f,"nv"},
-	{0x20,"LB"},
-	{0x21,"LH"},
-	{0x22,"LWL"},
-	{0x23,"LW"},
-	{0x24,"LBU"},
-	{0x25,"LHU"},
-	{0x26,"LWR"},
+	{0x20,"LB"}, //! \todo
+	{0x21,"LH"}, //! \todo
+	{0x22,"LWL"}, //! \todo
+	{0x23,"LW"}, //! \todo
+	{0x24,"LBU"}, //! \todo
+	{0x25,"LHU"}, //! \todo
+	{0x26,"LWR"}, //! \todo
 	{0x27,"nv"},
-	{0x28,"SB"},
-	{0x29,"SH"},
+	{0x28,"SB"}, //! \todo
+	{0x29,"SH"}, //! \todo
 	{0x2a,"SWL"},
-	{0x2b,"SW"},
+	{0x2b,"SW"}, //! \todo 26
 	{0x2c,"nv"},
 	{0x2d,"nv"},
-	{0x2e,"SWR"},
+	{0x2e,"SWR"}, //!
 	{0x2f,"nv"},
 	{0x30,"ni"},
 	{0x31,"ni"},
