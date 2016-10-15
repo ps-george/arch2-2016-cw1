@@ -1,0 +1,87 @@
+/*
+ * shared.cpp
+ *
+ *  Created on: 15 Oct 2016
+ *      Author: big-g
+ */
+
+#include <map>
+#include <string>
+#include <utility>
+
+using namespace std;
+
+/*!
+ * J-type if 2 or 3.
+ * R-type if 0.
+ * I-type if anything else.
+ */
+map<string, uint8_t> str_to_opcode;
+
+map<uint8_t, string> opcode_to_str{
+	{0x00,"R"},
+	{0x01,"B"},
+	{0x02,"J"},
+	{0x03,"JAL"},
+	{0x04,"BEQ"},
+	{0x05,"BNE"},
+	{0x06,"BLEZ"},
+	{0x07,"BGTZ"},
+	{0x08,"ADDI"},
+	{0x09,"ADDIU"},
+	{0x0a,"SLTI"},
+	{0x0b,"SLTIU"},
+	{0x0c,"ANDI"},
+	{0x0d,"ORI"},
+	{0x0e,"XORI"},
+	{0x0f,"LUI"},
+	{0x10,"ni"},
+	{0x11,"ni"},
+	{0x12,"ni"},
+	{0x13,"ni"},
+	{0x14,"nv"},
+	{0x15,"nv"},
+	{0x16,"nv"},
+	{0x17,"nv"},
+	{0x18,"nv"},
+	{0x19,"nv"},
+	{0x1a,"nv"},
+	{0x1b,"nv"},
+	{0x1c,"nv"},
+	{0x1d,"nv"},
+	{0x1e,"nv"},
+	{0x1f,"nv"},
+	{0x20,"LB"},
+	{0x21,"LH"},
+	{0x22,"LWL"},
+	{0x23,"LW"},
+	{0x24,"LBU"},
+	{0x25,"LHU"},
+	{0x26,"LWR"},
+	{0x27,"nv"},
+	{0x28,"SB"},
+	{0x29,"SH"},
+	{0x2a,"SWL"},
+	{0x2b,"SW"},
+	{0x2c,"nv"},
+	{0x2d,"nv"},
+	{0x2e,"SWR"},
+	{0x2f,"nv"},
+	{0x30,"ni"},
+	{0x31,"ni"},
+	{0x32,"ni"},
+	{0x33,"ni"},
+	{0x34,"nv"},
+	{0x35,"nv"},
+	{0x36,"nv"},
+	{0x37,"nv"},
+	{0x38,"ni"},
+	{0x39,"ni"},
+	{0x3a,"ni"},
+	{0x3b,"ni"},
+	{0x3c,"nv"},
+	{0x3d,"nv"},
+	{0x3e,"nv"},
+	{0x3f,"nv"}
+};
+
