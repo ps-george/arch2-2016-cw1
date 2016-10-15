@@ -9,6 +9,8 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <assert.h>
+#include <byteswap.h>
 
 using namespace std;
 
@@ -143,14 +145,15 @@ mips_error mips_cpu_get_pc(
 	inspect what happened and find out what went wrong. So
 	this should be true:
 
-		uint32_t pcOrig, pcGot;
-		mips_cpu_get_pc(cpu, &pcOrig);
-		mips_error err=mips_Success=mips_cpu_step(cpu);
-		if(err!=mips_Success){
-			mips_cpu_get_pc(cpu, &pcGot);
-			assert(pcOrig==pcGot);
-			assert(mips_cpu_step(cpu)==err);
-	    }
+	uint32_t pcOrig, pcGot;
+	mips_cpu_get_pc(state, &pcOrig);
+	mips_error err=mips_Success;
+	err = mips_cpu_step(state);
+	if(err!=mips_Success){
+		mips_cpu_get_pc(state,&pcGot);
+		assert(pcOrig==pcGot);
+		assert(mips_cpu_step(state)==err);
+	}
 
 	Maintaining this property in all cases is actually pretty
 	difficult, so _try_ to maintain it, but don't worry too
@@ -159,15 +162,35 @@ mips_error mips_cpu_get_pc(
 mips_error mips_cpu_step(
 	mips_cpu_h state	//! Valid (non-empty) handle to a CPU
 ){
-	uint32_t pcOrig, pcGot;
-	mips_cpu_get_pc(state, &pcOrig);
-	mips_error err=mips_Success;
-	err = mips_cpu_step(state);
-	if(err!=mips_Success){
-		mips_cpu_get_pc(state,&pcGot);
-		//assert(pcOrig==pcGot);
-		//assert(mips_cpu_step(state)==err);
+	// Read the memory location defined by PC
+	uint32_t val_b, val_l;
+	mips_error err = mips_mem_read(state->mem, state->pc,4,(uint8_t*)&val_b);
+	// If there is an error, return err.
+	if (err!=mips_Success){
+		return err;
 	}
+	// Convert from big-endian to little-endian
+	val_l = __bswap_32(val_b);
+	if (state->debugLevel){
+			fprintf(state->debugDest, "%d read from memory, converted to %d.\n",val_b, val_l);
+		}
+	// Determine whether R, I, or J type.
+	uint8_t opcode = val_b>>26;
+	if (2<=opcode<=3){
+		// J-type
+	}
+	else
+
+	// If there is an error, return err.
+	if (err!=mips_Success){
+		return err;
+	}
+	// Execute
+	// If there is an error, return err.
+	if (err!=mips_Success){
+		return err;
+	}
+
 
 	return err;
 }
