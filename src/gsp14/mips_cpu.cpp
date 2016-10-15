@@ -6,6 +6,11 @@
  */
 
 #include <mips.h>
+#include <string>
+#include <iostream>
+#include <sstream>
+
+using namespace std;
 
 struct mips_cpu_impl
 {
@@ -13,8 +18,30 @@ struct mips_cpu_impl
 	uint32_t regs[32];
 	mips_mem_h mem;
 	unsigned debugLevel;
-	char *debugDest;
+	FILE *debugDest;
 };
+
+string mips_cpu_print_state(mips_cpu_h state){
+	stringstream msg;
+	msg << "CPU State" << endl;
+	msg << "-------------" << endl;
+	msg << "pc: " << state->pc << endl;
+	for (unsigned i=0;i<32;i++){
+		msg << "Reg ";
+		if (i<10){
+			msg << " ";
+		}
+		msg << i << ": " << state->regs[i] << " ";
+		if ((i+1)%4==0){
+			msg << endl;
+		}
+		}
+	//msg << "regs: " << state->regs << endl;
+	//msg << "mem: " << "To be completed." << endl;
+	msg << "debugLevel: " << state->debugLevel << endl;
+	//msg << "debugDest: " << state->debugDest << endl;
+	return msg.str();
+}
 
 mips_cpu_h mips_cpu_create(mips_mem_h mem)
 {
@@ -26,8 +53,8 @@ mips_cpu_h mips_cpu_create(mips_mem_h mem)
 	}
 
 	state->debugLevel = 0;
-	state->mem=mem;
 	state->debugDest=NULL;
+	state->mem=mem;
 
 	return state;
 }
@@ -37,15 +64,19 @@ mips_cpu_h mips_cpu_create(mips_mem_h mem)
 	input of the CPU core.
 */
 mips_error mips_cpu_reset(mips_cpu_h state){
-	mips_error err=mips_Success;
-
 	state->pc =0;
+
 	for (unsigned i=0;i<32;i++){
 			state->regs[i]=0;
 		}
 
-
-	return err;
+	if (state->debugLevel){
+		fprintf(state->debugDest,"\nCPU state reset - new state below.\n");
+		string state_str = mips_cpu_print_state(state);
+		fprintf(state->debugDest,"%s\n",state_str.c_str());
+	}
+	//cout << "print to file location" << endl;
+	return mips_Success;
 }
 
 /*! Returns the current value of one of the 32 general purpose MIPS registers */
@@ -218,7 +249,13 @@ mips_error mips_cpu_step(
 */
 mips_error mips_cpu_set_debug_level(mips_cpu_h state, unsigned level, FILE *dest){
 	mips_error err=mips_Success;
-
+	state->debugLevel = level;
+	state->debugDest = dest;
+	//! \todo Don't understand how to use FILE object to print to file or stderr
+	if (level > 0 ) {
+		fprintf(dest, "Setting debug level to %d.\n", level);
+		fprintf(dest, "%s",mips_cpu_print_state(state).c_str());
+	}
 	return err;
 }
 
