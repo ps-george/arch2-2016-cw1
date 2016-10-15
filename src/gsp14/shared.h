@@ -15,6 +15,10 @@
  * R-type if 0.
  * I-type if anything else.
  */
-const std::map<uint8_t, std::string> opcode_to_str;
+
+typedef mips_error (*cFunc)(mips_mem_h, mips_cpu_h);
+
+extern const std::map<uint8_t, std::string> opcode_to_str;
+const std::map<std::string, cFunc> str_to_func;
 
 #endif /* SRC_GSP14_SHARED_H_ */

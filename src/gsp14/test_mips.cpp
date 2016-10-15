@@ -11,6 +11,7 @@
 #include "string.h"
 #include <iostream>
 #include <sstream>
+#include <functional>
 #include "test_mips_gsp14.h"
 #include "shared.h"
 
@@ -51,7 +52,7 @@ result_set test_addiu(mips_mem_h, mips_cpu_h);
  * @param
  * @return
  */
-typedef result_set (*pFunc)(mips_mem_h, mips_cpu_h);
+typedef result_set (*tFunc)(mips_mem_h, mips_cpu_h);
 
 map<int, string> nameTestMap = {
 		{0, "<internal>"}
@@ -62,13 +63,12 @@ map<int, string> nameTestMap = {
 		*/
 };
 
-map<int, pFunc> testMap = {
-		{0, &test_step}
+map<int, function<result_set(mips_mem_h, mips_cpu_h)> > testMap = {
+		{0, test_step}
 		/*{1,&test_add},
 		{2,&test_addi},
 		{3,&test_addiu}*/
 };
-
 map<string, uint8_t> str_to_opcode;
 
 void set_debug_level(int argc, char* argv[],mips_cpu_h cpu);
