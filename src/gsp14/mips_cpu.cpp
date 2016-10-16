@@ -11,15 +11,14 @@
 #include <sstream>
 #include <assert.h>
 #include <byteswap.h>
-#include "shared.h"
+#include "mips_cpu.h"
 #include <map>
-#include <vector>
+#include <functional>
+
+using namespace std;
 
 const std::map<uint8_t, std::string> opcode_to_str{
-	{0x00,"R"}, //! \todo
-	{0x01,"BCND"}, //! \todo
-	{0x02,"J"}, //! \todo
-	{0x03,"JAL"}, //! \todo
+	{0x00,"R"},{0x01,"BCND"},{0x02,"J"},{0x03,"JAL"},
 	{0x04,"BEQ"}, //! \todo
 	{0x05,"BNE"}, //! \todo
 	{0x06,"BLEZ"}, //! \todo
@@ -32,22 +31,10 @@ const std::map<uint8_t, std::string> opcode_to_str{
 	{0x0d,"ORI"}, //! \todo
 	{0x0e,"XORI"}, //! \todo
 	{0x0f,"LUI"}, //! \todo
-	{0x10,"ni"},
-	{0x11,"ni"},
-	{0x12,"ni"},
-	{0x13,"ni"},
-	{0x14,"nv"},
-	{0x15,"nv"},
-	{0x16,"nv"},
-	{0x17,"nv"},
-	{0x18,"nv"},
-	{0x19,"nv"},
-	{0x1a,"nv"},
-	{0x1b,"nv"},
-	{0x1c,"nv"},
-	{0x1d,"nv"},
-	{0x1e,"nv"},
-	{0x1f,"nv"},
+	{0x10,"ni"},{0x11,"ni"},{0x12,"ni"},{0x13,"ni"},
+	{0x14,"nv"},{0x15,"nv"},{0x16,"nv"},{0x17,"nv"},
+	{0x18,"nv"},{0x19,"nv"},{0x1a,"nv"},{0x1b,"nv"},
+	{0x1c,"nv"},{0x1d,"nv"},{0x1e,"nv"},{0x1f,"nv"},
 	{0x20,"LB"}, //! \todo
 	{0x21,"LH"}, //! \todo
 	{0x22,"LWL"}, //! \todo
@@ -60,29 +47,13 @@ const std::map<uint8_t, std::string> opcode_to_str{
 	{0x29,"SH"}, //! \todo
 	{0x2a,"SWL"},
 	{0x2b,"SW"}, //! \todo 26
-	{0x2c,"nv"},
-	{0x2d,"nv"},
+	{0x2c,"nv"},{0x2d,"nv"},
 	{0x2e,"SWR"}, //!
-	{0x2f,"nv"},
-	{0x30,"ni"},
-	{0x31,"ni"},
-	{0x32,"ni"},
-	{0x33,"ni"},
-	{0x34,"nv"},
-	{0x35,"nv"},
-	{0x36,"nv"},
-	{0x37,"nv"},
-	{0x38,"ni"},
-	{0x39,"ni"},
-	{0x3a,"ni"},
-	{0x3b,"ni"},
-	{0x3c,"nv"},
-	{0x3d,"nv"},
-	{0x3e,"nv"},
-	{0x3f,"nv"}
+	{0x2f,"nv"},{0x30,"ni"},{0x31,"ni"},{0x32,"ni"},
+	{0x33,"ni"},{0x34,"nv"},{0x35,"nv"},{0x36,"nv"},
+	{0x37,"nv"},{0x38,"ni"},{0x39,"ni"},{0x3a,"ni"},
+	{0x3b,"ni"},{0x3c,"nv"},{0x3d,"nv"},{0x3e,"nv"},{0x3f,"nv"}
 };
-
-using namespace std;
 
 struct mips_cpu_impl
 {
@@ -91,7 +62,165 @@ struct mips_cpu_impl
 	mips_mem_h mem;
 	unsigned debugLevel;
 	FILE *debugDest;
+	uint32_t hi;
+	uint32_t lo;
 };
+
+mips_cpu_h mips_cpu_create(mips_mem_h mem)
+{
+	mips_cpu_impl *state=new mips_cpu_impl;
+	state->pc=0;
+	for (unsigned i=0;i<32;i++){
+		state->regs[i]=0;
+	}
+	state->hi=0;
+	state->lo=0;
+	state->debugLevel = 0;
+	state->debugDest=NULL;
+	state->mem=mem;
+	return state;
+}
+
+mips_error mips_cpu_reset(mips_cpu_h state){
+	state->pc =0;
+
+	for (unsigned i=0;i<32;i++){
+			state->regs[i]=0;
+		}
+	state->hi=0;
+	state->lo=0;
+	if (state->debugLevel){
+		fprintf(state->debugDest,"\nCPU state reset - new state below.\n");
+		string state_str = mips_cpu_print_state(state);
+		fprintf(state->debugDest,"%s\n",state_str.c_str());
+	}
+	return mips_Success;
+}
+
+/*! Returns the current value of one of the 32 general purpose MIPS registers */
+mips_error mips_cpu_get_register(
+	mips_cpu_h state,	//!< Valid (non-empty) handle to a CPU
+	unsigned index,		//!< Index from 0 to 31
+	uint32_t *value		//!< Where to write the value to
+){
+	mips_error err=mips_Success;
+
+	if (index<32){
+		*value = state->regs[index];
+	}
+	else{err=mips_ErrorInvalidArgument;}
+
+	return err;
+}
+
+/*! Modifies one of the 32 general purpose MIPS registers. */
+mips_error mips_cpu_set_register(
+	mips_cpu_h state,	//!< Valid (non-empty) handle to a CPU
+	unsigned index,		//!< Index from 0 to 31
+	uint32_t value		//!< New value to write into register file
+){
+	mips_error err=mips_Success;
+	if (index<32){
+		state->regs[index]=value;
+	}
+	else{err=mips_ErrorInvalidArgument;}
+		// if there's an error do this: err = mips_ErrorFileWriteError
+	return err;
+}
+
+mips_error mips_cpu_set_pc(
+	mips_cpu_h state,	//!< Valid (non-empty) handle to a CPU
+	uint32_t pc			//!< Address of the next instruction to exectute.
+){
+	mips_error err=mips_Success;
+	if (pc%4==0){
+		state->pc = pc;
+	}
+	else{err=mips_ExceptionInvalidAlignment;}
+	return err;
+}
+
+mips_error mips_cpu_get_pc(
+	mips_cpu_h state,	//!< Valid (non-empty) handle to a CPU
+	uint32_t *pc		//!< Where to write the byte address too
+){
+	mips_error err=mips_Success;
+	*pc = state->pc;
+
+	return err;
+}
+
+mips_error mips_cpu_step(
+	mips_cpu_h state	//! Valid (non-empty) handle to a CPU
+){
+	// Read the memory location defined by PC
+	uint32_t val_b, val_l;
+	mips_error err = mips_mem_read(state->mem, state->pc,4,(uint8_t*)&val_b);
+
+	// If there is an error, return err.
+	if (err!=mips_Success){
+		return err;
+	}
+
+	// Convert from big-endian to little-endian
+	val_l = __builtin_bswap32(val_b);
+	if (state->debugLevel){
+			fprintf(state->debugDest, "0x%08x read from memory, converted to 0x%08x.\n",val_b, val_l);
+		}
+
+	// Decode the opcode
+	uint8_t opcode = val_l>>26;
+	string op;
+	op = opcode_to_str.at(opcode);
+
+	// If there is an error, return err.
+	if (op=="ni"){return mips_ErrorNotImplemented;}
+	else if (op=="nv") {return mips_ExceptionInvalidInstruction;}
+	// Execute the instruction!
+	else if (opcode==0x0){
+		err = execute_r(val_l, state);
+	}
+	else if (opcode==0x1) {
+		err = execute_rt(val_l,state);
+	}
+	else if ((opcode==0x2)||(opcode==0x3)){
+		err = execute_j(val_l,op,state);
+	}
+	else if (opcode>0x3){
+		err = execute_i(val_l,op,state);
+	}
+	return err;
+}
+
+mips_error mips_cpu_set_debug_level(mips_cpu_h state, unsigned level, FILE *dest){
+	mips_error err=mips_Success;
+	state->debugLevel = level;
+	state->debugDest = dest;
+	//! \todo Don't understand how to use FILE object to print to file or stderr
+	if (level > 0 ) {
+		fprintf(dest, "Setting debug level to %d.\n", level);
+		fprintf(dest, "%s",mips_cpu_print_state(state).c_str());
+	}
+	return err;
+}
+
+void mips_cpu_free(mips_cpu_h state){
+	mips_cpu_reset(state);
+	mips_mem_free(state->mem);
+}
+
+mips_error execute_i(const uint32_t &val_l,std::string op, mips_cpu_h state){
+	mips_error err = mips_Success;
+
+
+
+	return err;
+
+}
+
+/*
+ * FUNCTIONS
+ */
 
 string mips_cpu_print_state(mips_cpu_h state){
 	stringstream msg;
@@ -108,6 +237,8 @@ string mips_cpu_print_state(mips_cpu_h state){
 			msg << endl;
 		}
 		}
+
+	msg << "hi: " << state->hi << " lo: " << state->lo << endl;;
 	//msg << "regs: " << state->regs << endl;
 	//msg << "mem: " << "To be completed." << endl;
 	msg << "debugLevel: " << state->debugLevel << endl;
@@ -115,286 +246,328 @@ string mips_cpu_print_state(mips_cpu_h state){
 	return msg.str();
 }
 
-mips_cpu_h mips_cpu_create(mips_mem_h mem)
-{
-	mips_cpu_impl *state=new mips_cpu_impl;
+uint32_t unsigned_add(const uint32_t &a,const uint32_t &b){return a+b;}
+uint32_t unsigned_sub(const uint32_t &a,const uint32_t &b){return a-b;}
+int32_t signed_add(const int32_t &a,const int32_t &b){return a+b;}
+int32_t signed_sub(const int32_t &a,const int32_t &b){return a-b;}
 
-	state->pc=0;
-	for (unsigned i=0;i<32;i++){
-		state->regs[i]=0;
+
+mips_error jump(uint32_t target, int link, mips_cpu_h state){
+	uint32_t * pc = &(state->pc);
+	if(link){state->regs[31] = *pc + 8;}
+	if (target%4!=0){
+		return mips_ExceptionInvalidAlignment;
 	}
-
-	state->debugLevel = 0;
-	state->debugDest=NULL;
-	state->mem=mem;
-
-	return state;
-}
-
-/*! Reset the CPU as if it had just been created, with all registers zerod.
-	However, it should not modify RAM. Imagine this as asserting the reset
-	input of the CPU core.
-*/
-mips_error mips_cpu_reset(mips_cpu_h state){
-	state->pc =0;
-
-	for (unsigned i=0;i<32;i++){
-			state->regs[i]=0;
-		}
-
 	if (state->debugLevel){
-		fprintf(state->debugDest,"\nCPU state reset - new state below.\n");
-		string state_str = mips_cpu_print_state(state);
-		fprintf(state->debugDest,"%s\n",state_str.c_str());
+		fprintf(state->debugDest,
+				"Jumping PC from %d to %d",
+				*pc,target);
 	}
-	//cout << "print to file location" << endl;
+	*pc = target;
 	return mips_Success;
 }
 
-/*! Returns the current value of one of the 32 general purpose MIPS registers */
-mips_error mips_cpu_get_register(
-	mips_cpu_h state,	//!< Valid (non-empty) handle to a CPU
-	unsigned index,		//!< Index from 0 to 31
-	uint32_t *value		//!< Where to write the value to
-){
-	mips_error err=mips_Success;
-	*value = state->regs[index];
 
-	// if there's an error do this: err = mips_ErrorFileReadError;
+/*
+ *Rt-Type functions!!
+ */
 
-	return err;
-}
-
-/*! Modifies one of the 32 general purpose MIPS registers. */
-mips_error mips_cpu_set_register(
-	mips_cpu_h state,	//!< Valid (non-empty) handle to a CPU
-	unsigned index,		//!< Index from 0 to 31
-	uint32_t value		//!< New value to write into register file
-){
-	mips_error err=mips_Success;
-	state->regs[index]=value;
-	// if there's an error do this: err = mips_ErrorFileWriteError
-	return err;
-}
-
-/*! Sets the program counter for the next instruction to the specified byte address.
-
-	While this sets the value of the PC, it should not cause any kind of
-	execution to happen. Once you look at branches in detail, you will
-	see that there is some slight ambiguity about this function. Choose the
-	only option that makes sense.
-*/
-mips_error mips_cpu_set_pc(
-	mips_cpu_h state,	//!< Valid (non-empty) handle to a CPU
-	uint32_t pc			//!< Address of the next instruction to exectute.
-){
-	mips_error err=mips_Success;
-	state->pc = pc;
-	// if there's an error do this: err = mips_ErrorFileWriteError
-	return err;
-}
-
-/*! Gets the pc for the next instruction.
-
-	Returns the program counter for the next instruction to be executed.
-*/
-mips_error mips_cpu_get_pc(
-	mips_cpu_h state,	//!< Valid (non-empty) handle to a CPU
-	uint32_t *pc		//!< Where to write the byte address too
-){
-	mips_error err=mips_Success;
-	*pc = state->pc;
-
-	return err;
-}
-
-/*! Advances the processor by one instruction.
-
-	If an exception or error occurs, the CPU and memory state
-	should be left unchanged. This is so that the user can
-	inspect what happened and find out what went wrong. So
-	this should be true:
-
-	uint32_t pcOrig, pcGot;
-	mips_cpu_get_pc(state, &pcOrig);
-	mips_error err=mips_Success;
-	err = mips_cpu_step(state);
-	if(err!=mips_Success){
-		mips_cpu_get_pc(state,&pcGot);
-		assert(pcOrig==pcGot);
-		assert(mips_cpu_step(state)==err);
-	}
-
-	Maintaining this property in all cases is actually pretty
-	difficult, so _try_ to maintain it, but don't worry too
-	much if under some exceptions it doesn't quite work.
-*/
-mips_error mips_cpu_step(
-	mips_cpu_h state	//! Valid (non-empty) handle to a CPU
-){
-	// Read the memory location defined by PC
-	uint32_t val_b, val_l;
-	mips_error err = mips_mem_read(state->mem, state->pc,4,(uint8_t*)&val_b);
-
-	// If there is an error, return err.
-	if (err!=mips_Success){
-		return err;
-	}
-	// Convert from big-endian to little-endian
-	val_l = __bswap_32(val_b);
-	if (state->debugLevel){
-			fprintf(state->debugDest, "%d read from memory, converted to %d.\n",val_b, val_l);
+mips_error execute_rt(const uint32_t &val_l, mips_cpu_h state){
+	mips_error err = mips_Success;
+	uint32_t offset,fn_code,src;
+	fn_code = (val_l & 0x001f0000)>>16;
+	src = (val_l & 0x03e00000)>>21;
+	offset = (val_l & 0x0000FFFF);
+	const uint32_t * src_v = &((state->regs[src]));
+	uint32_t * pc = &(state->pc);
+	if (fn_code ==0x0){
+		//BLTZ
+		if ((int32_t)*src_v<0){
+			err = jump(*pc+(offset<<2),0,state);
 		}
-	// Decode the opcode
-	uint8_t opcode = val_b>>26;
-	string op;
-	op = opcode_to_str.at(opcode);
-	// If there is an error, return err.
-	if (op=="ni"){err=mips_ErrorNotImplemented;}
-	else if (op=="na") {err = mips_ExceptionInvalidInstruction;}
-	if (err!=mips_Success){
-		return err;
+		else{*pc+=4;}
 	}
-	// Execute the instruction... map to functions again?
-	if (op=="R"){
-		// R-type, different kind of function
-
-		//
-		//
+	else if (fn_code==0x1){
+		//BGEZ
+		if ((int32_t)*src_v>=0){
+			err = jump(*pc+(offset<<2),0,state);
+		}
+		else{*pc+=4;}
 	}
-	else {
-
-
-
+	else if (fn_code==0x10){
+		// BLTZAL
+		if ((int32_t)*src_v<0){
+			err = jump(*pc+(offset<<2),1,state);
+		}
+		else{*pc+=4;}
 	}
-
-
-
-
-
-	// If there is an error, return err.
-	if (err!=mips_Success){
-		return err;
+	else if (fn_code==0x11){
+		//BGEZAL
+		if((int32_t)*src_v>=0){
+			err = jump(*pc+(offset<<2),1,state);
+		}
 	}
-
+	else {err = mips_ErrorInvalidArgument;}
 
 	return err;
 }
 
-/*! Controls printing of diagnostic and debug messages.
+/*
+ *J-type functions!!
+ */
 
-	You are encouraged to include diagnostic and debugging
-	information in your CPU, but you should include a way
-	to control how much is printed. The default should be
-	to print nothing, but it is a good idea to have a way
-	of turning it on and off _without_ recompiling. This function
-	provides a way for the user to indicate both how much
-	output they are interested in, and where that output
-	should go (should it go to stdout, or stderr, or a file?).
-
-	\param state Valid (non-empty) CPU handle.
-
-	\param level What level of output should be printed. There
-	is no specific format for the output format, the only
-	requirement is that for level zero there is no output.
-
-	\param dest Where the output should go. This should be
-	remembered by the CPU simulator, then later passed
-	to fprintf to provide output.
-
-	\pre It is required that if level>0 then dest!=0, so the
-	caller will always provide a valid destination if they
-	have indicated they will require output.
-
-	It is suggested that for level=1 you print out one
-	line of information per instruction with basic information
-	like the program counter and the instruction type, and for higher
-	levels you may want to print the CPU state before each
-	instruction. Both of these can usually be inserted in
-	just one place in the processor, and can greatly aid
-	debugging.
-
-	However, this is completely implementation defined behaviour,
-	so your simulator does not have to print anything for
-	any debug level if you don't want to.
-
-	The intent is that this function merely modifies the type
-	of reporting that is performed during mips_cpu_step:
-
-		// Enable basic debugging to stderr
-		mips_cpu_set_debug_level(cpu, 1, stderr);
-
-		// The implementation may now choose to print things
-		// to stderr (what exactly is up to the implementation)
-		mips_cpu_step(cpu);	// e.g. prints "pc = 0x12, encoding=R"
-
-		// Tell the CPU to print nothing
-		mips_cpu_set_debug_level(cpu, 0, NULL);
-
-		// Now the implementation must not print any debug information
-		mips_cpu_step(cpu);
-
-		// Send detailed debug output to a text file
-		FILE *dump=fopen("dump.txt", "wt");
-		mips_cpu_set_debug_level(cpu, 2, dump);
-
-		// Run lots of instructions until the CPU reports an error.
-		// The implementation can write lots of useful information to
-		// the file
-		mips_error err=mips_Success=mips_Success;
-		while(!err) {
-			mips_cpu_step(cpu);
-		};
-
-		// Detach the text file, and close it
-		mips_cpu_set_debug_level(cpu, 0, NULL);
-		fclose(dump);
-
-		// You can now read through the text file "dump.txt" to see what happened
-
-	However, you could decide that you want to print something out
-	at the point that mips_cpu_set_debug_level is called with level>0,
-	such as the current PC and registers. Up to you.
-*/
-mips_error mips_cpu_set_debug_level(mips_cpu_h state, unsigned level, FILE *dest){
-	mips_error err=mips_Success;
-	state->debugLevel = level;
-	state->debugDest = dest;
-	//! \todo Don't understand how to use FILE object to print to file or stderr
-	if (level > 0 ) {
-		fprintf(dest, "Setting debug level to %d.\n", level);
-		fprintf(dest, "%s",mips_cpu_print_state(state).c_str());
-	}
+mips_error execute_j(const uint32_t &val_l,string op, mips_cpu_h state){
+	mips_error err = mips_Success;
+	uint32_t target = 0;
+	target = (val_l & 0x03FFFFFF)<<2;
+	int link = 0;
+	if (op=="JAL"){link = 1;}
+	err = jump(target,link,state);
 	return err;
 }
 
-/*! Free all resources associated with state.
+/*
+ * R-Type Functions!!!
+ *
+ */
 
-	\param state Either a handle to a valid simulation state, or an empty (NULL) handle.
-
-	It is legal to pass an empty (NULL) handle to mips_cpu_free. It is illegal
-	to pass the same non-empty handle to mips_cpu_free twice, and will
-	result in undefined behaviour (i.e. anything could happen):
-
-		mips_cpu_h cpu=mips_cpu_create(...);
-		...
-		mips_cpu_free(h);	// This is fine
-		...
-		mips_cpu_free(h);	// BANG! or nothing. Or format the hard disk.
-
-	A better pattern is to always zero the variable after calling free,
-	in case elsewhere you are not sure if resources have been released yet:
-
-		mips_cpu_h cpu=mips_cpu_create(...);
-		...
-		mips_cpu_free(h);	// This is fine
-		h=0;	// Make sure it is now empty
-		...
-		mips_cpu_free(h);	// Fine, nothing happens
-		h=0;    // Does nothing here, might could stop other errors
-*/
-void mips_cpu_free(mips_cpu_h state){
-	mips_cpu_reset(state);
-	mips_mem_free(state->mem);
-
+void decode_r_type(const uint32_t &bytes, uint32_t &src1,uint32_t &src2,uint32_t &dest,uint32_t &shift_amt, uint32_t &fn_code){
+	fn_code = (bytes & 0x0000003f);
+	shift_amt = (bytes & 0x000007c0)>>6;
+	dest = (bytes & 0x0000f800)>>11;
+	src2 = (bytes & 0x001f0000)>>16;
+	src1 = (bytes & 0x03e00000)>>21;
 }
+
+mips_error execute_r(const uint32_t &val_l, mips_cpu_h state){
+	// Decode R-type function
+	uint32_t src1, src2, dest, shift_amt, fn_code;
+	decode_r_type(val_l,src1, src2, dest, shift_amt, fn_code);
+	mips_error err = mips_Success;
+	if (state->debugLevel){
+		fprintf(state->debugDest, "src1 = %d, src2 = %d, dest = %d, shift_amt = %d, fn_code = 0x%02x.\n",src1,src2,dest,shift_amt,fn_code);
+	}
+	// Pass parameters and state into R-function map
+	if (fn_code<0x8){
+		r_shift(src1, src2, dest, shift_amt, fn_code, state);
+	}
+	else if (fn_code==0x8){
+		// JR
+		err = jump(state->regs[src1],0,state);
+	}
+	else if (fn_code==0x9){
+		// JRAL
+		err = jump(state->regs[src1],1,state);
+	}
+	else if ((0xf<fn_code)&&(fn_code<0x14)){
+		// MFHI, MTHI, MFLO, MTLO
+		move_hilo(fn_code, dest, state);
+	}
+
+	else if ((0x17<fn_code)&&(fn_code<0x1c)){
+		// MULT, MULTU, DIV, DIVU
+		mult_div(src1, src2, fn_code, state);
+	}
+	else if ((0x1f<fn_code)&&(fn_code<0x28)){
+		// ADD, ADDU, SUB, SUBU AND,OR, XOR, NOR etc
+		add_sub_bitwise(src1, src2, dest, fn_code, state);
+	}
+	else if ((0x29<fn_code)&&(fn_code<0x2c)){
+		// SLT, SLTU
+		less_than(src1,src2,dest,fn_code,state);
+	}
+	else{return mips_ExceptionInvalidInstruction;}
+	return err;
+}
+
+/*
+ * R-SHIFTS
+ */
+
+void print_shift_debug(
+		int log, // if log = 1, logical, else arithmetic
+		int drc, // If dir = 1, right, else left
+		int var, // if var = 1, variable else immediate
+		const uint32_t src1_v, const uint32_t src2, const uint32_t src2_v,
+		const uint32_t dest,const uint32_t dest_v,
+		const uint32_t shift_amt,
+		const mips_cpu_h state){
+
+	const char* la = "arithmetically";
+	const char* dirn = "left";
+	uint32_t shift = shift_amt;
+	if (log){la = "logically";}
+	if (drc){dirn = "right";}
+	if (var){shift = src1_v;}
+
+	if (state->debugLevel){
+		fprintf(state->debugDest,
+				"Shifted value 0x%08x in reg %d by %d to the %s %s, reg %d now equals 0x%08x.\n",
+				src2_v,src2,shift,dirn,la,dest, dest_v);
+	}
+}
+
+void r_shift(uint32_t src1, uint32_t src2, uint32_t dest,  uint32_t shift_amt, uint32_t fn_code, mips_cpu_h state){
+	// dest = src1 shifted left by amount shift_amt
+	// If the destination == 0, we do nothing (that reg should always be 0)
+	if (dest == 0){
+		state->pc += 4;
+		return;
+	}
+	uint32_t * dest_reg = &(state->regs[dest]);
+	uint32_t * src1_reg = &(state->regs[src1]);
+	uint32_t * src2_reg = &(state->regs[src2]);
+	// SLL - Shift left logical (shift src2 left by shift_amt and put into dest)
+	if (fn_code == 0x0){
+		*dest_reg = *src2_reg<<shift_amt;
+		print_shift_debug(1,0,0,*src1_reg, src2, *src2_reg, dest, *dest_reg,shift_amt, state);
+	}
+	// SRL - Shift right logical
+	if (fn_code == 0x2){
+		*dest_reg = *src2_reg>>shift_amt;
+		print_shift_debug(1,1,0,*src1_reg, src2, *src2_reg, dest, *dest_reg,shift_amt, state);
+	}
+	// SRA - Shift right arithmetic
+	if (fn_code == 0x3){
+		*dest_reg = ((int32_t)*src2_reg)>>shift_amt;
+		print_shift_debug(0,1,0,*src1_reg, src2, *src2_reg, dest, *dest_reg,shift_amt, state);
+	}
+	// SLLV - Shift left logical variable
+	if (fn_code == 0x4){
+		*dest_reg = *src2_reg<<*src1_reg;
+		print_shift_debug(1,0,1,*src1_reg, src2, *src2_reg, dest, *dest_reg,shift_amt, state);
+	}
+	// SRLV
+	if (fn_code == 0x6){
+		*dest_reg = *src2_reg>>*src1_reg;
+		print_shift_debug(1,1,1,*src1_reg, src2, *src2_reg, dest, *dest_reg,shift_amt, state);
+	}
+	//SRAV
+	if (fn_code == 0x7){
+		*dest_reg = ((int32_t)*src2_reg)>>*src1_reg;
+		print_shift_debug(0,1,1,*src1_reg, src2, *src2_reg, dest, *dest_reg,shift_amt, state);
+	}
+	state->pc += 4;
+	return;
+}
+
+/*
+ * R-MFMT HILO
+ */
+void move_hilo(const uint32_t &fn_code, const uint32_t &dest, mips_cpu_h &state){
+	if (fn_code==0x10){
+		state->regs[dest] = state->hi;
+	}
+	else if (fn_code==0x11){
+		state->hi = state->regs[dest];
+	}
+	else if (fn_code==0x12){
+		state->regs[dest] = state->lo;
+	}
+	else if (fn_code==0x12){
+		state->regs[dest] = state->lo;
+	}
+}
+
+/*
+ * R-LESS THAN
+ */
+void less_than(uint32_t src1, uint32_t src2, uint32_t dest, uint32_t fn_code,mips_cpu_h state){
+	if (dest==0){
+		state->pc+=4;
+		return;
+	}
+	uint32_t * dest_reg = &(state->regs[dest]);
+	if (fn_code==0x2a){
+		if ((int32_t)src1<(int32_t)src2){*dest_reg = 1;}
+		else{*dest_reg=0;}
+	}
+	else if (fn_code==0x2b){
+		if (src1<src2){*dest_reg=0;}
+		else{*dest_reg=1;}
+	}
+	state->pc+=4;
+	return;
+}
+/*
+ * R-ADD_SUB_BITWISE OPS
+ */
+void add_sub_bitwise(uint32_t src1, uint32_t src2, uint32_t dest, uint32_t fn_code,mips_cpu_h state){
+	if (dest==0){
+		state->pc+=4;
+		return;
+	}
+	uint32_t * dest_reg = &(state->regs[dest]);
+	const uint32_t * src1_reg = &(state->regs[src1]);
+	const uint32_t * src2_reg = &(state->regs[src2]);
+	if (fn_code==0x20){
+		*dest_reg = signed_add(*src1_reg, *src2_reg);
+	}
+	if (fn_code==0x21){
+		*dest_reg = unsigned_add(*src1_reg,*src2_reg);
+	}
+	if (fn_code==0x22){
+		*dest_reg = signed_sub(*src1_reg, *src2_reg);
+	}
+	if (fn_code==0x23){
+		*dest_reg = unsigned_sub(*src1_reg, *src2_reg);
+	}
+	if (fn_code==0x24){
+		*dest_reg = (*src1_reg)&(*src2_reg);
+	}
+	if (fn_code==0x25){
+		*dest_reg = (*src1_reg)|(*src2_reg);
+	}
+	if (fn_code==0x26){
+		*dest_reg = ~(*src1_reg)|(*src2_reg);
+	}
+	if (fn_code==0x27){
+		*dest_reg = (*src1_reg)^(*src2_reg);
+	}
+	state->pc+=4;
+	return;
+}
+
+/*
+ * R_MULT DIV
+ */
+
+void mult_div(uint32_t src1,uint32_t src2,uint32_t fn_code,mips_cpu_h state){
+	int64_t ans;
+	uint64_t uans;
+	int32_t hi32, lo32;
+	uint32_t uhi32, ulo32;
+	// MULT
+	if (fn_code == 0x18){
+		ans = ((int64_t)src1)*((int64_t)src2);
+		hi32 = (ans)>>32;
+		lo32 = (ans & 0xFFFFFFFF);
+		state->hi = hi32;
+		state->lo = lo32;
+	}
+	//MULTU
+	if (fn_code == 0x19){
+		uans = (uint64_t)src1*(uint64_t)src2;
+		uhi32 = (uans)>>32;
+		ulo32 = (uans & 0xFFFFFFFF);
+		state->hi = uhi32;
+		state->lo = ulo32;
+	}
+	// DIV
+	if (fn_code == 0x1a){
+		hi32 = ((int32_t)src1)/((int32_t)src2);
+		lo32 = ((int32_t)src1)%((int32_t)src2);
+		state->lo = hi32;
+		state->hi = lo32;
+	}
+	// DIVU
+	if (fn_code == 0x1b){
+		state->lo = src1/src2;
+		state->hi = src1%src2;
+	}
+	state->pc+=4;
+	return;
+}
+/*
+ * END OF R-TYPE FUNCTIONS
+ */

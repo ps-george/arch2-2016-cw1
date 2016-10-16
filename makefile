@@ -25,7 +25,7 @@ USER_CPU_SRCS = \
 	
 USER_TEST_SRCS = \
 	$(wildcard src/$(LOGIN)/test_mips.cpp) \
-	$(wildcard src/$(LOGIN)/test_mips_*.cpp) \
+	$(wildcard src/$(LOGIN)/test_mips_.cpp) \
 	$(wildcard src/$(LOGIN)/test_mips/*.cpp)
 	
 USER_CPU_OBJECTS = $(patsubst %.cpp,%.o,$(USER_CPU_SRCS))
