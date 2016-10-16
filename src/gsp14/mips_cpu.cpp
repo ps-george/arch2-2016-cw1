@@ -211,7 +211,7 @@ void mips_cpu_free(mips_cpu_h state){
 
 mips_error execute_i(const uint32_t &val_l,std::string op, mips_cpu_h state){
 	mips_error err = mips_Success;
-
+	if (op=="BEQ")
 
 
 	return err;

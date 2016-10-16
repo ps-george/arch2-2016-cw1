@@ -1,6 +1,6 @@
 # Your login. For example, mine is dt10. Yours
 # won't be eie2ugs...
-LOGIN ?= eie2ugs
+LOGIN ?= gsp14
 
 # Turn on all warnings
 CPPFLAGS += -W -Wall
@@ -78,12 +78,11 @@ src/$(LOGIN)/test_mips : $(DEFAULT_OBJECTS) $(USER_CPU_OBJECTS) $(USER_TEST_OBJE
 # You may want to look at the corresponding binaries, code, and disassembly
 # in the fragments directory.
 fragments/run_fibonacci : $(DEFAULT_OBJECTS) $(USER_CPU_OBJECTS)
-	
 # Again, another bonus gift. If you are convinced that your
 # program implements addu (and one other instruction) correctly,
 # then try running this.
 fragments/run_addu : $(DEFAULT_OBJECTS) $(USER_CPU_OBJECTS)
-
+	#$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ $^ $(LFLAGS) $(LDLIBS)
 # Gets rid of temporary files.
 # The `-` prefix is to indicate that it doesn't matter if the
 # command fails (because the file may not exist)
