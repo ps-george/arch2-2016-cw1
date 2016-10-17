@@ -1,19 +1,5 @@
-ADD,2,3,ANY,0,5
-ADD,2,3,0,0,0
-ADD,0xFFFFFFFF,0xFFFFFFFF,ANY ,0,mips_ArithmeticOverflow
-ADD ,0xFFFFFFFF,0xFFFFFFFF,0,0,0
-ADD,2,3,ANY,5,mips_InvalidInstruction
-,,,,,
-ADDU,2,3,ANY,,5
-ADDU,2,-3,ANY,,-1
-ADDU,-1,-1,ANY,,-2
-ADDU,-1,-1,0,,0
-ADDU,2,3,0,,0
-,,,,,
-SUB,2,3,ANY,,mips_ArithmeticOverflow
-SUB,3,2,ANY,,1
-SUB,,,,,
-,,,,,
-,,,,,
-SUBU,2,3,ANY,,-1
-SUBU,,,,,
+ADD,2,3,ANY,0,0,5
+ADD,2,3,0,0,0,0
+ADD,0xFFFFFFFF,0xFFFFFFFF,ANY,0,1,mips_ArithmeticOverflow
+ADD,0xFFFFFFFF,0xFFFFFFFF,0,0,0,0
+ADD,2,3,ANY,5,1,mips_InvalidInstruction

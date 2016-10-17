@@ -219,7 +219,7 @@ int main(int argc, char* argv[])
 	set_debug_level(argc,argv,cpu);
 
 	/*! Open test file */
-	ifstream r_test("test_spec.csv");
+	ifstream r_test("test_spec.tsv");
 	if (r_test.is_open()){
 		cout << "Open" << endl;
 	}
@@ -233,14 +233,24 @@ int main(int argc, char* argv[])
 	 * Set model_state to desired output
 	 */
 	string line;
-	string func, vals,valt,dest, shift, out;
-	while (getline (r_test,line)){
-		istringstream ss(line);
-		ss >> func >> vals >> valt >> dest >> shift >> out;
+	string func,tvals,tvalt,tdest,tshift,tout, terr;
+	uint32_t vals,valt,dest,shift,out,err;
 
-		cout << func << vals << valt << dest << shift << out << endl;
+	while (getline(r_test,line)){
+		istringstream ss(line);
+		ss >> func >> tvals >> tvalt >> tdest >> tshift >> terr >> tout;
+
+		vals = (uint32_t)atoi(tvals.c_str());
+		valt = (uint32_t)atoi(tvalt.c_str());
+		dest = (uint32_t)atoi(tdest.c_str());
+		shift = (uint32_t)atoi(tshift.c_str());
+		err = (uint32_t)atoi(terr.c_str());
+
+		cout << func<<", " << vals<<", " << valt<<", " << dest<<", " << shift<<", " << err<<", " << tout << endl;;
+		cin.get();
 
 	}
+	r_test.close();
 	//cout << test_add(mem,cpu).msg << endl;
 
 	//uint32_t xv=0x001100FF;
