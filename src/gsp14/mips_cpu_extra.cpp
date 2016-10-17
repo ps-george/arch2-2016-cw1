@@ -81,3 +81,27 @@ const std::map<uint32_t, function<mips_error(uint32_t,uint32_t,uint32_t,uint32_t
 	{"SLT",0x2a},
 	{"SLTU",0x2b}
 };*/
+
+
+/*
+result_set test_step(mips_mem_h mem, mips_cpu_h cpu){
+	// Get the pc value
+
+	// Get value at memory location
+
+	// Decode the value of the memory location
+
+	//
+	result_set results(0);
+	mips_error err = mips_cpu_step(cpu);
+	uint32_t pc;
+	mips_cpu_get_pc(cpu,&pc);
+	//mips_mem_read(mem,pc,4, );
+
+	if (err == mips_Success){
+		results.passed = 1;
+	}
+	results.msg = err;
+	return results;
+}
+*/
