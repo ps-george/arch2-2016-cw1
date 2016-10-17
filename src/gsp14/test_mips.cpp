@@ -13,6 +13,7 @@
 #include <string>
 #include "test_mips.h"
 #include <iomanip>
+#include <fstream>
 
 const std::map<std::string, uint8_t> r_to_op{
 	{"SLL",0x0},
@@ -217,7 +218,30 @@ int main(int argc, char* argv[])
 	/*! Set debug level */
 	set_debug_level(argc,argv,cpu);
 
-	cout << test_add(mem,cpu).msg << endl;
+	/*! Open test file */
+	ifstream r_test("test_spec.csv");
+	if (r_test.is_open()){
+		cout << "Open" << endl;
+	}
+	else{
+		cout << "Not open." << endl;
+	}
+
+	/*!
+	 * Parse through the file, executing the instructions listed on the MIPS
+	 * Get desired output from the test_spec
+	 * Set model_state to desired output
+	 */
+	string line;
+	string func, vals,valt,dest, shift, out;
+	while (getline (r_test,line)){
+		istringstream ss(line);
+		ss >> func >> vals >> valt >> dest >> shift >> out;
+
+		cout << func << vals << valt << dest << shift << out << endl;
+
+	}
+	//cout << test_add(mem,cpu).msg << endl;
 
 	//uint32_t xv=0x001100FF;
     //mips_error err=mips_mem_write(mem, 12, 4, (uint8_t*)&xv);
@@ -294,8 +318,10 @@ void set_debug_level(int argc, char* argv[],mips_cpu_h cpu){
 		}
 	}
 	mips_cpu_set_debug_level(cpu,level,dest);
-}
 
+
+}
+/*
 result_set test_sll(mips_mem_h mem, mips_cpu_h cpu){
 	result_set results(0);
 	// Write a sequence of instructions to memory, a list of uint32_t's, testing all funcs
@@ -402,15 +428,10 @@ result_set test_addiu(mips_mem_h, mips_cpu_h){
 	result_set results(0, "Fail");
 	return results;
 }
-
-
-
-
-
+*/
 /*!
- * Writes a function into memory and sets registers to specified values.
+ * Writes a function into memory.
  * @param mem - Memory handler (needed because don't know internals of CPU to access memory)
- * @param cpu - CPU handler
  * @param loc - Need to ensure PC==loc to ensure the instruction is executed.
  * @param func - String of R func to write to memory
  * @param reg1 - index of reg1
@@ -421,7 +442,6 @@ result_set test_addiu(mips_mem_h, mips_cpu_h){
  */
 mips_error mips_R_func(
 		mips_mem_h mem,
-		mips_cpu_h cpu,
 		uint32_t loc,
 		string func,
 		uint32_t reg1,
@@ -468,6 +488,8 @@ result_set compare_model(mips_cpu_h cpu, model_state model){
 	return results;
 }
 
+
+/*
 result_set mips_test_R_func(
 		mips_mem_h mem,
 		mips_cpu_h cpu,
@@ -560,3 +582,4 @@ if (reg1==0){a = 0;}if(reg2==0){b=0;}
 	if (err!=mips_Success){
 		results.msg = err;
 	}
+*/

@@ -197,7 +197,6 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 	}
 	return err;
 }
-
 mips_error mips_cpu_set_debug_level(mips_cpu_h state, unsigned level,
 		FILE *dest) {
 	mips_error err = mips_Success;
