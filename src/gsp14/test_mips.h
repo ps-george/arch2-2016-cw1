@@ -10,6 +10,8 @@
 
 
 #include "mips.h"
+#include <vector>
+#include <string>
 /*!
  * A struct to hold pass/fail information for each
  * specific test attempted
@@ -24,33 +26,42 @@ struct result_set;
  * @param dest - Destination (register, length 5)
  * @return 32 bitstream correctly formatted (big-endian) for writing to memory.
  */
-uint32_t construct_R_bitstream(std::string rfunc, uint32_t src1, uint32_t src2, uint32_t dest);
+uint32_t test_construct_R_bitstream(std::string rfunc, uint32_t src1, uint32_t src2, uint32_t dest);
+
+void set_debug_level(int argc, char* argv[], mips_cpu_h cpu);
+
+int read_test_spec(std::string filename, std::vector<std::vector<std::string> > &spec);
+
 
 /*!
- * test_add has no input params because inside of
- * test_add I will test all the possible corner cases etc.
- * that should be covered. Does not need an input.
- * @return a result set containing pass/fail
- * and details of which specific tests were failed
- * if any tests were failed.
+ * Writes a function into memory.
+ * @param mem - Memory handler (needed because don't know internals of CPU to access memory)
+ * @param loc - Need to ensure PC==loc to ensure the instruction is executed.
+ * @param func - String of R func to write to memory
+ * @param reg1 - index of reg1
+ * @param reg2 - index of reg2
+ * @param shift_amt - shift amount (if shifting)
+ * @param dest - index of destination register
+ * @return
  */
-result_set test_add(mips_mem_h, mips_cpu_h);
-result_set test_addi(mips_mem_h, mips_cpu_h);
-result_set test_addiu(mips_mem_h, mips_cpu_h);
-result_set test_addu(mips_mem_h, mips_cpu_h);
-result_set test_and(mips_mem_h, mips_cpu_h);
-result_set test_andi(mips_mem_h, mips_cpu_h);
-result_set test_beq(mips_mem_h, mips_cpu_h);
-result_set test_bgez(mips_mem_h, mips_cpu_h);
-result_set test_bgezal(mips_mem_h, mips_cpu_h);
-result_set test_bgtz(mips_mem_h, mips_cpu_h);
-result_set test_blez(mips_mem_h, mips_cpu_h);
-result_set test_bltz(mips_mem_h, mips_cpu_h);
-result_set test_bltzal(mips_mem_h, mips_cpu_h);
-result_set test_bne(mips_mem_h, mips_cpu_h);
-result_set test_div(mips_mem_h, mips_cpu_h);
-// etc...
+mips_error write_R_func(
+		mips_mem_h mem,
+		uint32_t loc,
+		std::string func,
+		uint32_t reg1,
+		uint32_t reg2,
+		uint32_t shift_amt,
+		uint32_t dest);
 
+typedef enum _instr_type{
+    instr_R_type =0,
+	instr_RT_type = 0x1,
+	instr_J_type = 0x2,
+	instr_I_type = 0x3
+}instr_type;
 
+int mips_test_check_err(mips_error err, result_set &results);
+
+uint32_t s_to_ui(std::string s){return (uint32_t)strtol(s.c_str(),NULL,0);}
 
 #endif /* SRC_GSP14_TEST_MIPS_H_ */
