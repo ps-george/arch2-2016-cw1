@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
     mips_cpu_set_register(c, 31, sentinelPC);   // set return address to something invalid
     mips_cpu_set_register(c, 4, n);             // Set input argument
     mips_cpu_set_register(c, 29, 0x1000);       // Create a stack pointer
-    
+
     uint32_t steps=0;
     while(!mips_cpu_step(c)){
         fprintf(stderr, "Step %d.\n", steps);
@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
         if(pc==sentinelPC)
             break;
     }
-    
+
     uint32_t fib_n;
     mips_cpu_get_register(c, 2, &fib_n);    // Get the result back
     

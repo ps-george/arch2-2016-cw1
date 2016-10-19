@@ -30,7 +30,7 @@ uint32_t test_construct_R_bitstream(std::string rfunc, uint32_t src1, uint32_t s
 
 void set_debug_level(int argc, char* argv[], mips_cpu_h cpu);
 
-int read_test_spec(std::string filename, std::vector<std::vector<std::string> > &spec);
+int parse_test_spec(std::string filename, std::vector<std::vector<std::string> > &spec);
 
 
 /*!
@@ -63,5 +63,6 @@ typedef enum _instr_type{
 int mips_test_check_err(mips_error err, result_set &results);
 
 uint32_t s_to_ui(std::string s){return (uint32_t)strtol(s.c_str(),NULL,0);}
+int32_t s_to_i(std::string s){return (int32_t)strtol(s.c_str(),NULL,0);}
 
 #endif /* SRC_GSP14_TEST_MIPS_H_ */

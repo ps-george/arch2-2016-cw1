@@ -1,5 +1,0 @@
-R,ADD,2,3,ANY,0,0,5
-R,ADD,2,3,0,0,0,0
-R,ADD,0xFFFFFFFF,0xFFFFFFFF,ANY,0,1,mips_ArithmeticOverflow
-R,ADD,0xFFFFFFFF,0xFFFFFFFF,0,0,0,0
-R,ADD,2,3,ANY,5,1,mips_InvalidInstruction
