@@ -1,0 +1,86 @@
+Rtype,Instr,MSG,s reg,t reg,d reg,h val,s val,t val,d_val,a_loc,ans,ans2,loc
+0,ADD,3+7=10,1,2,3,0,3,7,0,reg,10,0,0
+0,ADD,overflow trap,1,2,3,0,0xFFFFFFFF,0xFF,0,err,0x2006,0,0
+0,ADD,destination reg is 0,1,2,0,0,7,3,0,reg,0,0,0
+0,ADD,"source same as destination 3+7=10",1,2,1,0,3,7,3,reg,10,0,0
+0,ADD,invalid instruction (shift set),1,2,3,3,3,7,0,err,0x2005,0,0
+0,ADDU,3+7=10,1,2,3,0,3,7,0,reg,10,0,0
+0,ADDU,-1 + 2 =1,1,2,3,0,0xFFFFFFFF,2,0,reg,1,0,0
+0,ADDU,"source same as destination 3+7=10",1,2,1,0,3,7,3,reg,10,0,0
+0,ADDU,destination reg is 0,1,2,0,0,7,3,0,reg,0,0,0
+0,ADDU,invalid instruction (shift set),1,2,3,3,3,7,0,err,0x2005,0,0
+0,SUB,7-3=4,1,2,3,0,7,3,0,reg,4,0,0
+0,SUB,overflow trap,1,2,3,0,3,7,0,err,0x2006,0,0
+0,SUB,destination reg is 0,1,2,0,0,7,3,0,reg,0,0,0
+0,SUB,"source same as destination 7-3=4",1,2,1,0,7,3,7,reg,4,0,0
+0,SUB,invalid instruction (shift set),1,2,3,3,7,3,0,err,0x2005,0,0
+0,SUBU,7-3=4,1,2,3,0,7,3,0,reg,4,0,0
+0,SUBU,3-7=-4,1,2,3,0,3,7,0,reg,-4,0,0
+0,SUBU,destination reg is 0,1,2,0,0,7,3,0,reg,0,0,0
+0,SUBU,"source same as destination 7-3=4",1,2,1,0,7,3,7,reg,4,0,0
+0,SUBU,invalid instruction (shift set),1,2,3,3,7,3,0,err,0x2005,0,0
+0,AND,0xFFFF00FF & 0x12345678 = 0x12340078,1,2,3,0,0xFFFF00FF,0x12345678,0,reg,0x12340078,0,0
+0,AND,destination reg is 0,1,2,0,0,0xFFFF00FF,0x12345678,0,reg,0x0,0,0
+0,AND,source same as destination,1,2,1,0,0xFFFF00FF,0x12345678,0xFFFF00FF,reg,0x12340078,0,0
+0,AND,invalid instruction (shift set),1,2,1,3,0xFFFF00FF,0x12345678,0,err,0x2005,0,0
+0,OR,0x08888888|0x77777770 =0x7FFFFFF8,1,2,3,0,0x08888888,0x77777770,0,reg,0x7FFFFFF8,0,0
+0,OR,destination reg is 0,1,2,0,0,0x08888888,0x77777770,0,reg,0x0,0,0
+0,OR,source same as destination,1,2,1,0,0x08888888,0x77777770,0x08888888,reg,0x7FFFFFF8,0,0
+0,OR,invalid instruction (shift set),1,2,3,3,0x08888888,0x77777770,0,err,0x2005,0,0
+0,XOR,0x12345678|0x23456789=0x317131f1,1,2,3,0,0x12345678,0x23456789,0,reg,0x317131f1,0,0
+0,XOR,destination reg is 0,1,2,0,0,0x12345678,0x23456789,0,reg,0x0,0,0
+0,XOR,source same as destination,1,2,1,0,0x12345678,0x23456789,0x12345678,reg,0x317131f1,0,0
+0,XOR,invalid instruction (shift set),1,2,3,3,0x12345678,0x23456789,0,err,0x2005,0,0
+0,SLT,3<7 is true,1,2,3,0,3,7,5,reg,1,0,0
+0,SLT,7<3 is false,1,2,3,0,7,3,5,reg,0,0,0
+0,SLT,destination reg is 0,1,2,0,0,3,7,0,reg,0,0,0
+0,SLT,source same as destinatoin,1,2,1,0,3,7,3,reg,1,0,0
+0,SLT,invalid instruction (shift set),1,2,3,3,3,7,5,err,0x2005,0,0
+0,SLT,-1<7 is true,1,2,3,0,-1,7,5,reg,1,0,0
+0,SLTU,3<7 is true,1,2,3,0,3,7,5,reg,1,0,0
+0,SLTU,7<3 is false,1,2,3,0,7,3,5,reg,0,0,0
+0,SLTU,destination reg is 0,1,2,0,0,3,7,0,reg,0,0,0
+0,SLTU,source same as destinatoin,1,2,1,0,3,7,3,reg,1,0,0
+0,SLTU,invalid instruction (shift set),1,2,3,3,3,7,5,err,0x2005,0,0
+0,SLTU,-1<7 is false,1,2,3,0,-1,7,5,reg,0,0,0
+0,SLL,2<<2=8,0,2,3,2,0,2,0,reg,8,0,0
+0,SLL,shift top two bits off the end,0,2,3,2,0,0xFFFFFFFF,0,reg,0xFFFFFFFc,0,0
+0,SLL,source same as dest,0,1,1,2,0,3,3,reg,0xc,0,0
+0,SLL,destination reg is 0,0,2,0,2,0,2,0,reg,0,0,0
+0,SLL,invalid instruction (source 1 set),3,2,3,2,0,2,0,err,0x2005,0,0
+0,SRL,8>>2=2,0,2,3,2,0,8,0,reg,2,0,0
+0,SRL,shift bottom two bits off the end,0,2,3,2,0,7,0,reg,0x1,0,0
+0,SRL,source same as dest,0,1,1,2,0,8,8,reg,0x2,0,0
+0,SRL,destination reg is 0,0,2,0,2,0,7,0,reg,0,0,0
+0,SRL,invalid instruction (source 1 set),3,2,3,2,0,2,0,err,0x2005,0,0
+0,SRA,8>>2=2,0,2,3,2,0,8,0,reg,2,0,0
+0,SRA,shift bottom two bits off the end,0,2,3,2,0,7,0,reg,0x1,0,0
+0,SRA,source same as dest,0,1,1,2,0,8,8,reg,0x2,0,0
+0,SRA,destination reg is 0,0,2,0,2,0,7,0,reg,0,0,0
+0,SRA,invalid instruction (source 1 set),3,2,3,2,0,2,0,err,0x2005,0,0
+0,SRA,0x80000000>>2=0xe0000000 (sign-extend),0,2,3,2,0,0x80000000,0,reg,0xe0000000,0,0
+0,SLLV,1<<2=4,1,2,3,0,2,1,0,reg,4,0,0
+0,SLLV,3<<30=0x80000000 (shift off end),1,2,3,0,31,3,0,reg,0x80000000,0,0
+0,SLLV,source same as dest,1,2,2,0,2,1,1,reg,4,0,0
+0,SLLV,destination reg is 0,1,2,0,0,28,1,0,reg,0,0,0
+0,SLLV,invalid instruction (shift set),1,2,3,4,2,1,0,err,0x2005,0,0
+0,SRLV,2>>1=1,1,2,3,0,1,2,0,reg,1,0,0
+0,SRLV,3>>1=1 (shift off end),1,2,3,0,1,3,0,reg,1,0,0
+0,SRLV,source same as dest,1,2,2,0,1,2,2,reg,1,0,0
+0,SRLV,destination reg is 0,1,2,0,0,28,1,0,reg,0,0,0
+0,SRLV,invalid instruction (shift set),1,2,3,4,2,1,0,err,0x2005,0,0
+0,SRAV,2>>1=1,1,2,3,0,1,2,0,reg,1,0,0
+0,SRAV,3>>1=1 (shift off end),1,2,3,0,1,3,0,reg,1,0,0
+0,SRAV,source same as dest,1,2,2,0,1,2,2,reg,1,0,0
+0,SRAV,destination reg is 0,1,2,0,0,28,1,0,reg,0,0,0
+0,SRAV,invalid instruction (shift set),1,2,3,4,2,1,0,err,0x2005,0,0
+0,SRAV,0x80000000>>2=0xe0000000 (sign-extend),1,2,3,0,2,0x80000000,0,reg,0xe0000000,0,0
+0,MULT,3*5=15,1,2,0,0,3,5,0,hilo,0,15,0
+0,MULT,-3*5=-15 (sign extend),1,2,0,0,0xFFFFFFFD,5,0,hilo,0xFFFFFFFF,0xFFFFFFF1,0
+0,MULT,same reg src,1,1,0,0,3,3,0,hilo,0,9,0
+0,MULT,overflow into 64 bit num,1,2,0,0,0xFFFF,0xEFFFF,0,hilo,0xE,0xFFF00001,0
+0,MULT,invalid instruction (shift/dest set),1,2,5,2,0xFFFF,0xEFFFF,0,err,0x2005,0,0
+0,MULTU,3*5=15,1,2,0,0,3,5,0,hilo,0,15,0
+0,MULTU,-3*5=15 (no sign extend),1,2,0,0,0xFFFFFFFD,0x5,0,hilo,0x4,0xFFFFFFF1,0
+0,MULTU,same reg src,1,1,0,0,3,3,0,hilo,0,9,0
+0,MULTU,overflow into 64 bit num,1,2,0,0,0xFFFF,0xEFFFF,0,hilo,0xE,0xFFF00001,0
