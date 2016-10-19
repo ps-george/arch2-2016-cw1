@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
     uint32_t n=12;  // Value we will calculate fibonacci of
     
     uint32_t sentinelPC=0x10000000;
-    
+    mips_cpu_set_debug_level(c,1,stdout);
     mips_cpu_set_register(c, 31, sentinelPC);   // set return address to something invalid
     mips_cpu_set_register(c, 4, n);             // Set input argument
     mips_cpu_set_register(c, 29, 0x1000);       // Create a stack pointer

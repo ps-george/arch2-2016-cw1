@@ -350,14 +350,21 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, uint32_t i,
 		break;
 	case 0x2b: // SW
 		tmp32 = __builtin_bswap32(*val_t);
+		if (state->debugLevel) {
+			fprintf(state->debugDest,
+					"Trying to store to memory location 0x%x.\n", val_s+i);
+		}
 		err = mips_mem_write(state->mem, (val_s+i), 4, (uint8_t*)&tmp32);
 		break;
 	}
 	if (err != mips_Success) {
+		if (state->debugLevel) {
+			fprintf(state->debugDest,
+					"Mips memory error 0x%x.\n", err);
+		}
 		return err;
 	}
 	*val_t = tmp32;
-    mips_cpu_increment_pc(state);
 	return err;
 }
 
@@ -370,7 +377,7 @@ string mips_cpu_print_state(mips_cpu_h state) {
 		if (i < 10) {
 			msg << " ";
 		}
-		msg << i << ": ";msg << hex << state->regs[i]; msg << " ";
+		msg << dec << i << ": 0x" << hex << state->regs[i]<< dec; msg << " ";
 		if ((i + 1) % 4 == 0) {
 			msg << endl;
 		}
@@ -421,27 +428,39 @@ mips_error cpu_execute_rt(const uint32_t &src, const uint32_t &fn_code,
 	uint32_t * pc = &(state->pc);
 	//!\todo offset is sign extended
 	// Sign-extend the offset
-	uint32_t offset = (int32_t) i;
-
+	int32_t offset = i;
+	// If branch is not taken, delay slot is not executed.
 	switch (fn_code) {
 	case 0x0:	// BLTZ
 		if ((int32_t) *src_v < 0) {
-			return mips_cpu_jump(*pc + (offset << 2), 0, state);
+			return mips_cpu_jump((*pc+4) + (offset << 2), 0, state);
+		}
+		else{
+			*pc+=4;
 		}
 		break;
 	case 0x1: // BGEZ
 		if ((int32_t) *src_v >= 0) {
-			return mips_cpu_jump(*pc + (offset << 2), 0, state);
+			return mips_cpu_jump((*pc+4) + (offset << 2), 0, state);
+		}
+		else{
+			*pc+=4;
 		}
 		break;
 	case 0x10: // BLTZAL
 		if ((int32_t) *src_v < 0) {
-			return mips_cpu_jump(*pc + (offset << 2), 31, state);
+			return mips_cpu_jump((*pc+4) + (offset << 2), 31, state);
+		}
+		else{
+			*pc+=4;
 		}
 		break;
 	case 0x11: // BGEZAL
 		if ((int32_t) *src_v >= 0) {
-			return mips_cpu_jump(*pc + (offset << 2), 31, state);
+			return mips_cpu_jump((*pc+4) + (offset << 2), 31, state);
+		}
+		else{
+			*pc+=4;
 		}
 		break;
 	default:
@@ -812,76 +831,82 @@ mips_error mult_div(uint32_t src1, uint32_t src2, uint32_t fn_code,
 mips_error cpu_execute_i(const uint32_t &s, const uint32_t &t, const uint16_t &i,
 		const uint32_t &opcode, mips_cpu_h state) {
 	mips_error err = mips_Success;
-	const uint32_t * val_s = &(state->regs[s]);
+	uint32_t val_s = state->regs[s];
 	uint32_t * val_t = &(state->regs[t]);
 	uint32_t * pc = &(state->pc);
-	int32_t ss = (int32_t) state->regs[s];
-	int32_t simm = (int32_t)i;
-	uint32_t imm = (uint32_t)i;
+	int32_t sval_s = state->regs[s];
+	int32_t simm = (int16_t)i;
+	if(state->debugLevel){fprintf(state->debugDest,
+					"Simm = 0x%x\n",
+					i);}
+	uint32_t imm = i;
 	if (opcode > 0xf) {
 		err = cpu_memory_funcs(opcode, s, t, i, state);
 	}
 	switch (opcode) {
 	case 0x4: // BEQ (sign extend)
-		if ((*val_s) == (*val_t)) {
-			err = mips_cpu_jump((simm << 2) + state->pc, 0, state);
+		if ((val_s) == (*val_t)) {
+			err = mips_cpu_jump((simm << 2) + (*pc+4), 0, state);
 			return err;
 		}
 		break;
 	case 0x5: // BNE (sign extend)
-		if ((*val_s) != (*val_t)) {
-			err = mips_cpu_jump((simm << 2) + *pc, 0, state);
+		if ((val_s) != (*val_t)) {
+			err = mips_cpu_jump((simm << 2) + (*pc+4), 0, state);
 			return err;
 		}
 		break;
 	case 0x6: //BLEZ (sign extend)
-		if (ss <= 0x0) {
-			err = mips_cpu_jump((simm << 2) + *pc, 0, state);
+		if (sval_s <= 0x0) {
+			err = mips_cpu_jump((simm << 2) + (*pc+4), 0, state);
 			return err;
 		}
 		break;
 	case 0x7: // BGTZ (sign extend)
-		if (ss > 0x0) {
-			err = mips_cpu_jump((simm << 2) + *pc, 0, state);
+		if (sval_s > 0x0) {
+			err = mips_cpu_jump((simm << 2) + (*pc+4), 0, state);
 			return err;
 		}
 		break;
 	case 0x8: // ADDI (sign extend)
-		*val_t = ss + simm;
-		break;
-	case 0x9: // ADDUI
-		//if (overflow(ss+i)){
+		//if (overflow(sval_s+i)){
 		//	return mips_ExceptionArithmeticOverflow;)
 		//}
-		*val_t = (*val_s) + imm;
+		*val_t = sval_s + simm;
+		break;
+	case 0x9: // ADDUI
+		*val_t = sval_s + simm;
 		break;
 	case 0xa: // SLTI (sign extend)
-		if (ss < simm) {
+		if (sval_s < simm) {
 			*val_t = 0x1;
 		} else {
 			*val_t = 0x0;
 		}
 		break;
 	case 0xb: //STLIU
-		if (*val_s < imm) {
+		if (val_s < imm) {
 			*val_t = 0x1;
 		} else {
 			*val_t = 0x0;
 		}
 		break;
 	case 0xc: // ANDI (no sign extend)
-		*val_t = (*val_s) & imm;
+		*val_t = (val_s) & imm;
 		break;
 	case 0xd: //ORI
-		*val_t = (*val_s) | imm;
+		*val_t = (val_s) | imm;
 		break;
 	case 0xe: //XORI
-		*val_t = (*val_s) ^ imm;
+		*val_t = (val_s) ^ imm;
 		break;
 	case 0xf: //LUI
 		*val_t = (imm << 16);
 		break;
 	}
+	if (err !=mips_Success){
+		return err;
+	};
     mips_cpu_increment_pc(state);
 	return err;
 
