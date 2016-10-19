@@ -282,52 +282,81 @@ void mips_cpu_free(mips_cpu_h state) {
 mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, uint32_t i,
 		mips_cpu_h state) {
 	mips_error err = mips_Success;
-	uint16_t data_tmp;
+	uint32_t tmp32;
+	uint16_t tmp16;
+	uint8_t tmp8;
 	uint32_t val_s = state->regs[s];
 	uint32_t * val_t = &(state->regs[t]);
+	if ((val_s + i)%4!=0){
+		return mips_ExceptionInvalidAlignment;
+	}
 	switch (opcode) {
 	case 0x24: // LBU
-		err = mips_mem_read(state->mem, (val_s + i), 1, (uint8_t*) &data_tmp);
+		err = mips_mem_read(state->mem, (val_s + i), 1, &tmp8);
+		tmp32 = (uint32_t)tmp8;
 		break;
 	case 0x20: // LB
-		err = mips_mem_read(state->mem, (val_s + i), 1, (uint8_t*) &data_tmp);
-		data_tmp = (int8_t) data_tmp;
+		err = mips_mem_read(state->mem, (val_s + i), 1, &tmp8);
+		tmp32 = (int32_t)((int8_t)tmp8);
 		break;
 	case 0x21: // LH
-		err = mips_mem_read(state->mem, (val_s + i), 2, (uint8_t*) &data_tmp);
-		data_tmp = (int16_t) data_tmp;
+		err = mips_mem_read(state->mem, (val_s + i), 2, (uint8_t*) &tmp16);
+		tmp16 = __builtin_bswap16(tmp16);
+		tmp32 = (int32_t)((int16_t)tmp16);
 		break;
 	case 0x25: // LHU
-		err = mips_mem_read(state->mem, (val_s + i), 2, (uint8_t*) &data_tmp);
+		err = mips_mem_read(state->mem, (val_s + i), 2, (uint8_t*) &tmp16);
+		tmp16 = __builtin_bswap16(tmp16);
+		tmp32 = (uint32_t)tmp16;
 		break;
 	case 0x22: //LWL
-		//! \todo Check function properly
-		err = mips_mem_read(state->mem, (val_s + i), 4, (uint8_t*) &data_tmp);
+		err = mips_mem_read(state->mem, (val_s + i), 4, (uint8_t*) &tmp32);
 		if (state->debugLevel) {
 			fprintf(state->debugDest,
-					"LWL read from memory, number is 0x%08x.\n", data_tmp);
+					"LWL read from memory, number is 0x%08x.\n", tmp32);
 		}
+		// Load the whole word into temp and swap the bits around
+		tmp32 = __builtin_bswap32(tmp32);
+		// Remove the right half of the word
+		tmp32 = tmp32 & 0xFFFF0000;
 		*val_t = *val_t & 0x0000FFFF;
-		data_tmp = *val_t | (data_tmp << 16);
+		tmp32= *val_t | tmp32;
 		break;
 	case 0x26: // LWR
-
+		err = mips_mem_read(state->mem, (val_s + i), 4, (uint8_t*) &tmp32);
+		if (state->debugLevel) {
+			fprintf(state->debugDest,
+					"LWL read from memory, number is 0x%08x.\n", tmp32);
+		}
+		// Load the whole word into temp and swap the bits around
+		tmp32 = __builtin_bswap32(tmp32);
+		// Remove the left half of the word
+		tmp32 = tmp32 & 0x0000FFFF;
+		*val_t = *val_t & 0xFFFF0000;
+		tmp32= *val_t | tmp32;
+		break;
+	case 0x23: // LW
+		err = mips_mem_read(state->mem, (val_s + i), 4, (uint8_t*) &tmp32);
+		tmp32 = __builtin_bswap32(tmp32);
 		break;
 	case 0x28: // SB
-
+		tmp8 = (uint8_t)(*val_t & 0x000000FF);
+		err = mips_mem_write(state->mem, (val_s + i),1, &tmp8);
 		break;
 	case 0x29: // SH
-
+		tmp16 = (uint16_t)(*val_t & 0x0000FFFF);
+		tmp16 = __builtin_bswap16(tmp16);
+		err = mips_mem_write(state->mem, (val_s + i),2, (uint8_t*)&tmp16);
 		break;
-
 	case 0x2b: // SW
-
+		tmp32 = __builtin_bswap32(*val_t);
+		err = mips_mem_write(state->mem, (val_s+i), 4, (uint8_t*)&tmp32);
 		break;
 	}
 	if (err != mips_Success) {
 		return err;
 	}
-	*val_t = data_tmp;
+	*val_t = tmp32;
     mips_cpu_increment_pc(state);
 	return err;
 }
