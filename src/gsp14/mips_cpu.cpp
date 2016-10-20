@@ -70,6 +70,7 @@ struct mips_cpu_impl {
 	uint32_t hi;
 	uint32_t lo;
 	uint32_t dslot;
+	uint32_t Jpc;
 	uint32_t Npc;
 };
 
@@ -86,6 +87,7 @@ mips_cpu_h mips_cpu_create(mips_mem_h mem) {
 	state->mem = mem;
 	state->dslot=0;
 	state->Npc = 4;
+	state->Jpc = 0;
 	return state;
 }
 /*!
@@ -96,12 +98,19 @@ mips_cpu_h mips_cpu_create(mips_mem_h mem) {
  * instruction execution.
  * @param state - mips_cpu_h
  */
+//! \todo ERROR IS HERE
 void mips_cpu_increment_pc(mips_cpu_h state){
+	//! If there is no instruction in the delay slot, normal operation, change pc to npc
+	state->pc=state->Npc;
 	if(!state->dslot){
-		state->pc += 4;
+		state->Npc = (state->pc)+4;
 	}
+	//! If there is an instruction in the delay slot, we have just tried to execute it so
+	//! remove it. Set pc to Jpc. Set Jpc to 0.
 	else{
 		state->dslot=0;
+		state->Npc = state->Jpc;
+		state->Jpc = 0;
 	}
 }
 
@@ -119,6 +128,8 @@ mips_error mips_cpu_reset(mips_cpu_h state) {
 		fprintf(state->debugDest, "%s\n", state_str.c_str());
 	}
 	state->dslot=0;
+	state->Npc = 4;
+	state->Jpc = 0;
 	return mips_Success;
 }
 
@@ -181,6 +192,7 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 	uint32_t val_b, val_l;
 	mips_error err = mips_Success;
 	if (state->dslot){
+		//! If there is a delay slot
 		val_l = __builtin_bswap32(state->dslot);
 	}
 	else{
@@ -188,7 +200,6 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 		// Convert from big-endian to little-endian
 		val_l = __builtin_bswap32(val_b);
 	}
-
 	if (state->debugLevel) {
 				fprintf(state->debugDest, "\nCPU state - before step.\n");
 				string state_str = mips_cpu_print_state(state);
@@ -257,6 +268,9 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 			string state_str = mips_cpu_print_state(state);
 			fprintf(state->debugDest, "%s\n", state_str.c_str());
 		}
+	if (err==mips_Success){
+		mips_cpu_increment_pc(state);
+	}
 	return err;
 }
 mips_error mips_cpu_set_debug_level(mips_cpu_h state, unsigned level,
@@ -372,7 +386,7 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, uint32_t i,
 string mips_cpu_print_state(mips_cpu_h state) {
 	stringstream msg;
 	msg << "-------------" << endl;
-	msg << "pc: " << state->pc << endl;
+	msg << "pc: " << state->pc << "Npc: " << state->Npc << "Jpc: " << state->Jpc << endl;
 	for (unsigned i = 0; i < 32; i++) {
 		msg << "Reg ";
 		if (i < 10) {
@@ -401,20 +415,18 @@ mips_error mips_cpu_save_delay_slot(mips_cpu_h state){
 }
 
 mips_error mips_cpu_jump(uint32_t target, uint32_t link, mips_cpu_h state) {
-	uint32_t * pc = &(state->pc);
 	mips_error err = mips_Success;
-
 	if (link) {
-		state->regs[link] = *pc + 8;
+		state->regs[link] = state->pc + 8;
 	}
 	if (target % 4 != 0) {
 		return mips_ExceptionInvalidAlignment;
 	}
 	if (state->debugLevel) {
-		fprintf(state->debugDest, "Jumping PC from %d to %d", *pc, target);
+		fprintf(state->debugDest, "Jumping PC from %d to %d", state->Jpc, target);
 	}
-	err = mips_cpu_save_delay_slot(state);
-	*pc = target;
+	state->dslot=1;
+	state->Jpc = target;
 	return err;
 }
 
@@ -436,39 +448,26 @@ mips_error cpu_execute_rt(const uint32_t &src, const uint32_t &fn_code,
 		if ((int32_t) *src_v < 0) {
 			return mips_cpu_jump((*pc+4) + (offset << 2), 0, state);
 		}
-		else{
-			*pc+=4;
-		}
 		break;
 	case 0x1: // BGEZ
 		if ((int32_t) *src_v >= 0) {
 			return mips_cpu_jump((*pc+4) + (offset << 2), 0, state);
-		}
-		else{
-			*pc+=4;
 		}
 		break;
 	case 0x10: // BLTZAL
 		if ((int32_t) *src_v < 0) {
 			return mips_cpu_jump((*pc+4) + (offset << 2), 31, state);
 		}
-		else{
-			*pc+=4;
-		}
 		break;
 	case 0x11: // BGEZAL
 		if ((int32_t) *src_v >= 0) {
 			return mips_cpu_jump((*pc+4) + (offset << 2), 31, state);
-		}
-		else{
-			*pc+=4;
 		}
 		break;
 	default:
 		return mips_ErrorInvalidArgument;
 		break;
 	}
-    mips_cpu_increment_pc(state);
 	return err;
 }
 
@@ -590,12 +589,6 @@ mips_error r_shift(uint32_t src1, uint32_t src2, uint32_t dest, uint32_t shift_a
 	// If the destination == 0, we do nothing (that reg should always be 0)
 	mips_error err = mips_Success;
 	if (dest == 0) {
-		if(!state->dslot){
-			state->pc += 4;
-		}
-		else{
-			state->dslot=0;
-		}
 		return err;
 	}
 	uint32_t * dest_reg = &(state->regs[dest]);
@@ -640,7 +633,6 @@ mips_error r_shift(uint32_t src1, uint32_t src2, uint32_t dest, uint32_t shift_a
 				shift_amt, state);
 		break;
 	}
-    mips_cpu_increment_pc(state);
 	return err;
 }
 
@@ -671,7 +663,6 @@ mips_error move_hilo(const uint32_t &fn_code, const uint32_t &dest,
 		state->regs[dest] = state->lo;
 		break;
 	}
-    mips_cpu_increment_pc(state);
 	return err;
 }
 
@@ -682,12 +673,6 @@ mips_error less_than(uint32_t src1, uint32_t src2, uint32_t dest, uint32_t fn_co
 		mips_cpu_h state) {
 	mips_error err = mips_Success;
 	if (dest == 0) {
-		if(!state->dslot){
-			state->pc += 4;
-		}
-		else{
-			state->dslot=0;
-		}
 		return err;
 	}
 	uint32_t * dest_reg = &(state->regs[dest]);
@@ -712,7 +697,6 @@ mips_error less_than(uint32_t src1, uint32_t src2, uint32_t dest, uint32_t fn_co
 		}
 		break;
 	}
-    mips_cpu_increment_pc(state);
 	return err;
 }
 /*
@@ -732,12 +716,6 @@ mips_error add_sub_bitwise(uint32_t src1, uint32_t src2, uint32_t dest,
 		uint32_t fn_code, mips_cpu_h state) {
 	mips_error err = mips_Success;
 	if (dest == 0) {
-		if(!state->dslot){
-			state->pc += 4;
-		}
-		else{
-			state->dslot=0;
-		}
 		return err;
 	}
 	uint32_t * dest_reg = &(state->regs[dest]);
@@ -780,7 +758,6 @@ mips_error add_sub_bitwise(uint32_t src1, uint32_t src2, uint32_t dest,
 		*dest_reg = ~((*src1_reg) | (*src2_reg));
 		break;
 	}
-    mips_cpu_increment_pc(state);
 	return err;
 }
 
@@ -822,7 +799,6 @@ mips_error mult_div(uint32_t src1, uint32_t src2, uint32_t fn_code,
 		state->lo = src1 / src2;
 		state->hi = src1 % src2;
 	}
-    mips_cpu_increment_pc(state);
 	return err;
 }
 /*
@@ -911,6 +887,5 @@ mips_error cpu_execute_i(const uint32_t &s, const uint32_t &t, const uint16_t &i
 	if (err !=mips_Success){
 		return err;
 	};
-    mips_cpu_increment_pc(state);
 	return err;
 }
