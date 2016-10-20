@@ -69,7 +69,7 @@ struct mips_cpu_impl {
 	FILE *debugDest;
 	uint32_t hi;
 	uint32_t lo;
-	uint32_t dslot;
+	uint32_t delay_slot;
 	uint32_t jPC;
 	uint32_t nPC;
 };
@@ -85,7 +85,7 @@ mips_cpu_h mips_cpu_create(mips_mem_h mem) {
 	state->debugLevel = 0;
 	state->debugDest = NULL;
 	state->mem = mem;
-	state->dslot=0;
+	state->delay_slot=0;
 	state->nPC = 4;
 	state->jPC = 0;
 	return state;
@@ -98,13 +98,13 @@ mips_cpu_h mips_cpu_create(mips_mem_h mem) {
 void mips_cpu_increment_pc(mips_cpu_h state){
 	//! If there is no instruction in the delay slot, normal operation, change pc to npc
 	state->pc=state->nPC;
-	if(!state->dslot){
+	if(!state->delay_slot){
 		state->nPC = (state->pc)+4;
 	}
 	//! If there is an instruction in the delay slot, we have just tried to execute it so
 	//! remove it. Set pc to jPC. Set jPC to 0.
 	else{
-		state->dslot=0;
+		state->delay_slot=0;
 		state->nPC = state->jPC;
 		state->jPC = 0;
 	}
@@ -123,7 +123,7 @@ mips_error mips_cpu_reset(mips_cpu_h state) {
 		string state_str = mips_cpu_print_state(state);
 		fprintf(state->debugDest, "%s\n", state_str.c_str());
 	}
-	state->dslot=0;
+	state->delay_slot=0;
 	state->nPC = 4;
 	state->jPC = 0;
 	return mips_Success;
@@ -187,9 +187,9 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 	// Read the memory location defined by PC
 	uint32_t val_b, val_l;
 	mips_error err = mips_Success;
-	if (state->dslot){
+	if (state->delay_slot){
 		//! If there is a delay slot
-		val_l = __builtin_bswap32(state->dslot);
+		val_l = __builtin_bswap32(state->delay_slot);
 	}
 	else{
 		err = mips_mem_read(state->mem, state->pc, 4, (uint8_t*) &val_b);
@@ -406,7 +406,7 @@ string mips_cpu_print_state(mips_cpu_h state) {
 mips_error mips_cpu_save_delay_slot(mips_cpu_h state){
 	uint32_t tmp;
 	mips_error err = mips_mem_read(state->mem,state->pc+4,4,(uint8_t*)&tmp);
-	state->dslot = tmp;
+	state->delay_slot = tmp;
 	return err;
 }
 
@@ -421,7 +421,7 @@ mips_error mips_cpu_jump(uint32_t target, uint32_t link, mips_cpu_h state) {
 	if (state->debugLevel) {
 		fprintf(state->debugDest, "Jumping PC from %d to %d", state->jPC, target);
 	}
-	state->dslot=1;
+	state->delay_slot=1;
 	state->jPC = target;
 	return err;
 }

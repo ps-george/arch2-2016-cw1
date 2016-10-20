@@ -7,6 +7,13 @@
 
 #ifndef SRC_GSP14_MIPS_CPU_H_
 #define SRC_GSP14_MIPS_CPU_H_
+/*!
+ * Performs pc = Npc.
+ * Sets Npc to Jpc if delay_slot flag is up, and puts delay_slot flag down.
+ * Sets Npc to pc+=4 if delay_slot flag is not up. Leaves flag down
+ * @param state
+ */
+void mips_cpu_increment_pc(mips_cpu_h state);
 
 /*!
  * Prints out current value of pc, all register values and the values of hi and lo.
@@ -126,7 +133,7 @@ mips_error move_hilo(const uint32_t &fn_code, const uint32_t &dest, mips_cpu_h &
  * @param src1 - bits 25:21
  * @param src2 - bits 20:16
  * @param dest - bits 15:11
- * @param shift_amt
+ * @param shift_amt - bits 10:6
  * @param fn_code - bits 5:0
  * @param state - CPU handler
  * @return
@@ -137,7 +144,7 @@ mips_error r_shift(uint32_t src1, uint32_t src2, uint32_t dest,  uint32_t shift_
  * Sets PC to target and saves PC+8 in link if indicated.
  * @param target - Where to jump to.
  * @param link - If 1, save pc+8 in regs[31].
- * @param state - Used to set pc to target.
+ * @param state - Used to set jPC to target.
  */
 mips_error mips_cpu_jump(uint32_t target, uint32_t link, mips_cpu_h state);
 
