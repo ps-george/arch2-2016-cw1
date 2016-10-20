@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
     uint32_t sentinelPC=0x10000000;
     
     mips_cpu_reset(c);  // get back to a zero state, with pc=0
-    
+    mips_cpu_set_debug_level(c,1,stdout);
     mips_cpu_set_register(c, 31, sentinelPC);   // set function return address to something invalid just in case
     mips_cpu_set_register(c, 4, a);             // Set first function input (MIPS calling convention)
     mips_cpu_set_register(c, 5, b);             // Set second input argument (MIPS calling convention)

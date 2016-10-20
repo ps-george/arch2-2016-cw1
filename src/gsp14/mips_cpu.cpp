@@ -61,6 +61,9 @@ const std::map<uint8_t, std::string> opcode_to_str {
 	{ 0x3b, "ni" },
 };
 
+/*
+*	include/ HEADER FILE FUNCTIONS
+*/
 struct mips_cpu_impl {
 	uint32_t pc;
 	uint32_t regs[32];
@@ -90,29 +93,10 @@ mips_cpu_h mips_cpu_create(mips_mem_h mem) {
 	state->jPC = 0;
 	return state;
 }
-/*!
- * Change the pc to nPC
- * If delay slot flag is up, we put the flag down, and set the nPC to jPC.
- * @param state - mips_cpu_h
- */
-void mips_cpu_increment_pc(mips_cpu_h state){
-	//! If there is no instruction in the delay slot, normal operation, change pc to npc
-	state->pc=state->nPC;
-	if(!state->delay_slot){
-		state->nPC = (state->pc)+4;
-	}
-	//! If there is an instruction in the delay slot, we have just tried to execute it so
-	//! remove it. Set pc to jPC. Set jPC to 0.
-	else{
-		state->delay_slot=0;
-		state->nPC = state->jPC;
-		state->jPC = 0;
-	}
-}
+
 
 mips_error mips_cpu_reset(mips_cpu_h state) {
 	state->pc = 0;
-
 	for (unsigned i = 0; i < 32; i++) {
 		state->regs[i] = 0;
 	}
@@ -182,6 +166,25 @@ mips_error mips_cpu_get_pc(mips_cpu_h state,//!< Valid (non-empty) handle to a C
 	return err;
 }
 
+mips_error mips_cpu_set_debug_level(mips_cpu_h state, unsigned level,
+		FILE *dest) {
+	mips_error err = mips_Success;
+	state->debugLevel = level;
+	state->debugDest = dest;
+	if (level > 0) {
+		fprintf(dest, "Setting debug level to %d.\n", level);
+		fprintf(dest, "%s", mips_cpu_print_state(state).c_str());
+	}
+	return err;
+}
+
+void mips_cpu_free(mips_cpu_h state) {
+	mips_cpu_reset(state);
+	mips_mem_free(state->mem);
+}
+/*
+* MIPS_CPU_STEP
+*/
 mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 		) {
 	// Read the memory location defined by PC
@@ -269,27 +272,237 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 	}
 	return err;
 }
-mips_error mips_cpu_set_debug_level(mips_cpu_h state, unsigned level,
-		FILE *dest) {
+
+/*
+ * CPU General Functions
+ */
+ string mips_cpu_print_state(mips_cpu_h state) {
+ 	stringstream msg;
+ 	msg << "-------------" << endl;
+ 	msg << "pc: " << state->pc << "nPC: " << state->nPC << "jPC: " << state->jPC << endl;
+ 	for (unsigned i = 0; i < 32; i++) {
+ 		msg << "Reg ";
+ 		if (i < 10) {
+ 			msg << " ";
+ 		}
+ 		msg << dec << i << ": 0x" << hex << state->regs[i]<< dec; msg << " ";
+ 		if ((i + 1) % 4 == 0) {
+ 			msg << endl;
+ 		}
+ 	}
+
+ 	msg << "hi: " << state->hi << " lo: " << state->lo << endl;
+ 	;
+ 	//msg << "regs: " << state->regs << endl;
+ 	//msg << "mem: " << "To be completed." << endl;
+ 	msg << "debugLevel: " << state->debugLevel << endl;
+ 	//msg << "debugDest: " << state->debugDest << endl;
+ 	return msg.str();
+ }
+
+/*
+*	 MIPS CPU STEP(CPU) functions
+*/
+
+void mips_cpu_increment_pc(mips_cpu_h state){
+ //! If there is no instruction in the delay slot, normal operation, change pc to npc
+ state->pc=state->nPC;
+ if(!state->delay_slot){
+	 state->nPC = (state->pc)+4;
+ }
+ //! If there is an instruction in the delay slot, we have just tried to execute it so
+ //! remove it. Set pc to jPC. Set jPC to 0.
+ else{
+	 state->delay_slot=0;
+	 state->nPC = state->jPC;
+	 state->jPC = 0;
+ }
+}
+
+ void cpu_decode_instr(const uint32_t &bytes, uint32_t &op, uint32_t &s,
+ 		uint32_t &t, uint32_t &d, uint32_t &sh, uint32_t &fn, uint16_t &i,
+ 		uint32_t &j) {
+ 	op = bytes >> 26;
+ 	s = (bytes & 0x03e00000) >> 21;
+ 	t = (bytes & 0x001f0000) >> 16;
+ 	d = (bytes & 0x0000f800) >> 11;
+ 	sh = (bytes & 0x000007c0) >> 6;
+ 	fn = (bytes & 0x0000003f);
+ 	i = (uint16_t) (bytes & 0x0000FFFF);
+ 	j = (bytes & 0x03FFFFFF);
+ }
+
+ mips_error mips_cpu_jump(uint32_t target, uint32_t link, mips_cpu_h state) {
+ 	mips_error err = mips_Success;
+ 	if (link) {
+ 		state->regs[link] = state->pc + 8;
+ 	}
+ 	if (target % 4 != 0) {
+ 		return mips_ExceptionInvalidAlignment;
+ 	}
+ 	if (state->debugLevel) {
+ 		fprintf(state->debugDest, "Jumping PC from %d to %d", state->jPC, target);
+ 	}
+ 	state->delay_slot=1;
+ 	state->jPC = target;
+ 	return err;
+ }
+
+ int overflow(uint32_t a, uint32_t b){
+ 	if (((a > 0) && (b > INT_MAX - a))||((b > 0) && (a > INT_MAX -a))){
+ 		return 1;
+ 	}
+ 	return 0;
+ }
+/*
+ *Rt-Type functions!!
+ */
+// src = s, fn_code = t, offset = i
+mips_error cpu_execute_rt(const uint32_t &src, const uint32_t &fn_code,
+		const uint16_t &i, mips_cpu_h state) {
 	mips_error err = mips_Success;
-	state->debugLevel = level;
-	state->debugDest = dest;
-	if (level > 0) {
-		fprintf(dest, "Setting debug level to %d.\n", level);
-		fprintf(dest, "%s", mips_cpu_print_state(state).c_str());
+	const uint32_t * src_v = &((state->regs[src]));
+	uint32_t * pc = &(state->pc);
+	//!\todo offset is sign extended
+	// Sign-extend the offset
+	int32_t offset = i;
+	//!\todo If branch is not taken, delay slot is not executed.
+	switch (fn_code) {
+	case 0x0:	// BLTZ
+		if ((int32_t) *src_v < 0) {
+			return mips_cpu_jump((*pc+4) + (offset << 2), 0, state);
+		}
+		break;
+	case 0x1: // BGEZ
+		if ((int32_t) *src_v >= 0) {
+			return mips_cpu_jump((*pc+4) + (offset << 2), 0, state);
+		}
+		break;
+	case 0x10: // BLTZAL
+		if ((int32_t) *src_v < 0) {
+			return mips_cpu_jump((*pc+4) + (offset << 2), 31, state);
+		}
+		break;
+	case 0x11: // BGEZAL
+		if ((int32_t) *src_v >= 0) {
+			return mips_cpu_jump((*pc+4) + (offset << 2), 31, state);
+		}
+		break;
+	default:
+		return mips_ErrorInvalidArgument;
+		break;
 	}
 	return err;
 }
-
-void mips_cpu_free(mips_cpu_h state) {
-	mips_cpu_reset(state);
-	mips_mem_free(state->mem);
-}
-
 /*
- * FUNCTIONS
+ * END OF Rt-Type functions!!
  */
-
+/*
+ *J-type Functions
+ */
+mips_error cpu_execute_j(const uint32_t &j, const uint32_t opcode,
+		mips_cpu_h state) {
+	mips_error err = mips_Success;
+	uint32_t target = j;
+	target = j << 2;
+	uint32_t link = 0;
+	// if JAL
+	if (opcode == 0x3) {
+		link = 31;
+	}
+	err = mips_cpu_jump(target, link, state);
+	return err;
+}
+/*
+* END OF J-type Functions
+*/
+/*
+ * I-TYPE FUNCTIONS
+ */
+mips_error cpu_execute_i(const uint32_t &s, const uint32_t &t, const uint16_t &i,
+		const uint32_t &opcode, mips_cpu_h state) {
+	mips_error err = mips_Success;
+	uint32_t val_s = state->regs[s];
+	uint32_t * val_t = &(state->regs[t]);
+	uint32_t * pc = &(state->pc);
+	int32_t sval_s = state->regs[s];
+	int32_t simm = (int16_t)i;
+	if(state->debugLevel){fprintf(state->debugDest,
+					"Simm = 0x%x\n",
+					i);}
+	uint32_t imm = i;
+	if (opcode > 0xf) {
+		err = cpu_memory_funcs(opcode, s, t, i, state);
+	}
+	switch (opcode) {
+	case 0x4: // BEQ (sign extend)
+		if ((val_s) == (*val_t)) {
+			err = mips_cpu_jump((simm << 2) + (*pc+4), 0, state);
+			return err;
+		}
+		break;
+	case 0x5: // BNE (sign extend)
+		if ((val_s) != (*val_t)) {
+			err = mips_cpu_jump((simm << 2) + (*pc+4), 0, state);
+			return err;
+		}
+		break;
+	case 0x6: //BLEZ (sign extend)
+		if (sval_s <= 0x0) {
+			err = mips_cpu_jump((simm << 2) + (*pc+4), 0, state);
+			return err;
+		}
+		break;
+	case 0x7: // BGTZ (sign extend)
+		if (sval_s > 0x0) {
+			err = mips_cpu_jump((simm << 2) + (*pc+4), 0, state);
+			return err;
+		}
+		break;
+	case 0x8: // ADDI (sign extend)
+		//if (overflow(sval_s+i)){
+		//	return mips_ExceptionArithmeticOverflow;)
+		//}
+		*val_t = sval_s + simm;
+		break;
+	case 0x9: // ADDUI
+		*val_t = sval_s + simm;
+		break;
+	case 0xa: // SLTI (sign extend)
+		if (sval_s < simm) {
+			*val_t = 0x1;
+		} else {
+			*val_t = 0x0;
+		}
+		break;
+	case 0xb: //STLIU
+		if (val_s < imm) {
+			*val_t = 0x1;
+		} else {
+			*val_t = 0x0;
+		}
+		break;
+	case 0xc: // ANDI (no sign extend)
+		*val_t = (val_s) & imm;
+		break;
+	case 0xd: //ORI
+		*val_t = (val_s) | imm;
+		break;
+	case 0xe: //XORI
+		*val_t = (val_s) ^ imm;
+		break;
+	case 0xf: //LUI
+		*val_t = (imm << 16);
+		break;
+	}
+	if (err !=mips_Success){
+		return err;
+	};
+	return err;
+}
+/*
+* MIPS CPU Memory Functions
+*/
 mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, uint32_t i,
 		mips_cpu_h state) {
 	mips_error err = mips_Success;
@@ -378,141 +591,24 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, uint32_t i,
 	*val_t = tmp32;
 	return err;
 }
-
-string mips_cpu_print_state(mips_cpu_h state) {
-	stringstream msg;
-	msg << "-------------" << endl;
-	msg << "pc: " << state->pc << "nPC: " << state->nPC << "jPC: " << state->jPC << endl;
-	for (unsigned i = 0; i < 32; i++) {
-		msg << "Reg ";
-		if (i < 10) {
-			msg << " ";
-		}
-		msg << dec << i << ": 0x" << hex << state->regs[i]<< dec; msg << " ";
-		if ((i + 1) % 4 == 0) {
-			msg << endl;
-		}
-	}
-
-	msg << "hi: " << state->hi << " lo: " << state->lo << endl;
-	;
-	//msg << "regs: " << state->regs << endl;
-	//msg << "mem: " << "To be completed." << endl;
-	msg << "debugLevel: " << state->debugLevel << endl;
-	//msg << "debugDest: " << state->debugDest << endl;
-	return msg.str();
-}
-
-mips_error mips_cpu_save_delay_slot(mips_cpu_h state){
-	uint32_t tmp;
-	mips_error err = mips_mem_read(state->mem,state->pc+4,4,(uint8_t*)&tmp);
-	state->delay_slot = tmp;
-	return err;
-}
-
-mips_error mips_cpu_jump(uint32_t target, uint32_t link, mips_cpu_h state) {
-	mips_error err = mips_Success;
-	if (link) {
-		state->regs[link] = state->pc + 8;
-	}
-	if (target % 4 != 0) {
-		return mips_ExceptionInvalidAlignment;
-	}
-	if (state->debugLevel) {
-		fprintf(state->debugDest, "Jumping PC from %d to %d", state->jPC, target);
-	}
-	state->delay_slot=1;
-	state->jPC = target;
-	return err;
-}
-
 /*
- *Rt-Type functions!!
- */
-// src = s, fn_code = t, offset = i
-mips_error cpu_execute_rt(const uint32_t &src, const uint32_t &fn_code,
-		const uint16_t &i, mips_cpu_h state) {
-	mips_error err = mips_Success;
-	const uint32_t * src_v = &((state->regs[src]));
-	uint32_t * pc = &(state->pc);
-	//!\todo offset is sign extended
-	// Sign-extend the offset
-	int32_t offset = i;
-	// If branch is not taken, delay slot is not executed.
-	switch (fn_code) {
-	case 0x0:	// BLTZ
-		if ((int32_t) *src_v < 0) {
-			return mips_cpu_jump((*pc+4) + (offset << 2), 0, state);
-		}
-		break;
-	case 0x1: // BGEZ
-		if ((int32_t) *src_v >= 0) {
-			return mips_cpu_jump((*pc+4) + (offset << 2), 0, state);
-		}
-		break;
-	case 0x10: // BLTZAL
-		if ((int32_t) *src_v < 0) {
-			return mips_cpu_jump((*pc+4) + (offset << 2), 31, state);
-		}
-		break;
-	case 0x11: // BGEZAL
-		if ((int32_t) *src_v >= 0) {
-			return mips_cpu_jump((*pc+4) + (offset << 2), 31, state);
-		}
-		break;
-	default:
-		return mips_ErrorInvalidArgument;
-		break;
-	}
-	return err;
-}
-
+* END OF MIPS CPU Memory Functions
+*/
 /*
- *J-type functions!!
- */
-// target = j, opcode = opcode
-mips_error cpu_execute_j(const uint32_t &j, const uint32_t opcode,
-		mips_cpu_h state) {
-	mips_error err = mips_Success;
-	uint32_t target = j;
-	target = j << 2;
-	uint32_t link = 0;
-	// if JAL
-	if (opcode == 0x3) {
-		link = 31;
-	}
-	err = mips_cpu_jump(target, link, state);
-	return err;
-}
-
+* END OF I-Type Functions
+*/
 /*
- * R-Type Functions!!!
- *
+ * R-Type Functions
  */
-
-void cpu_decode_instr(const uint32_t &bytes, uint32_t &op, uint32_t &s,
-		uint32_t &t, uint32_t &d, uint32_t &sh, uint32_t &fn, uint16_t &i,
-		uint32_t &j) {
-	op = bytes >> 26;
-	s = (bytes & 0x03e00000) >> 21;
-	t = (bytes & 0x001f0000) >> 16;
-	d = (bytes & 0x0000f800) >> 11;
-	sh = (bytes & 0x000007c0) >> 6;
-	fn = (bytes & 0x0000003f);
-	i = (uint16_t) (bytes & 0x0000FFFF);
-	j = (bytes & 0x03FFFFFF);
-}
-
 mips_error cpu_execute_r(uint32_t src1, uint32_t src2, uint32_t dest,
 		uint32_t shift_amt, uint32_t fn_code, mips_cpu_h state) {
-	// Decode R-type function
 	mips_error err = mips_Success;
 	if (state->debugLevel) {
 		fprintf(state->debugDest,
 				"src1 = %d, src2 = %d, dest = %d, shift_amt = %d, fn_code = 0x%02x.\n",
 				src1, src2, dest, shift_amt, fn_code);
 	}
-	// Pass parameters and state into R-function map
+	// Pass parameters and state into specific r function handler
 	if (fn_code < 0x8) {
 		err = r_shift(src1, src2, dest, shift_amt, fn_code, state);
 	} else if (fn_code == 0x8) {
@@ -546,39 +642,9 @@ mips_error cpu_execute_r(uint32_t src1, uint32_t src2, uint32_t dest,
 	}
 	return err;
 }
-
 /*
  * R-SHIFTS
  */
-
-void print_shift_debug(
-		int log, // if log = 1, logical, else arithmetic
-		int drc, // If dir = 1, right, else left
-		int var, // if var = 1, variable else immediate
-		const uint32_t src1_v, const uint32_t src2, const uint32_t src2_v,
-		const uint32_t dest, const uint32_t dest_v, const uint32_t shift_amt,
-		const mips_cpu_h state) {
-
-	const char* la = "arithmetically";
-	const char* dirn = "left";
-	uint32_t shift = shift_amt;
-	if (log) {
-		la = "logically";
-	}
-	if (drc) {
-		dirn = "right";
-	}
-	if (var) {
-		shift = src1_v;
-	}
-
-	if (state->debugLevel) {
-		fprintf(state->debugDest,
-				"Shifted value 0x%08x in reg %d by %d to the %s %s, reg %d now equals 0x%08x.\n",
-				src2_v, src2, shift, dirn, la, dest, dest_v);
-	}
-}
-
 mips_error r_shift(uint32_t src1, uint32_t src2, uint32_t dest, uint32_t shift_amt,
 		uint32_t fn_code, mips_cpu_h state) {
 	// dest = src1 shifted left by amount shift_amt
@@ -631,7 +697,37 @@ mips_error r_shift(uint32_t src1, uint32_t src2, uint32_t dest, uint32_t shift_a
 	}
 	return err;
 }
+/* SHIFT Debug function
+*/
+void print_shift_debug(
+		int log, // if log = 1, logical, else arithmetic
+		int drc, // If dir = 1, right, else left
+		int var, // if var = 1, variable else immediate
+		const uint32_t src1_v, const uint32_t src2, const uint32_t src2_v,
+		const uint32_t dest, const uint32_t dest_v, const uint32_t shift_amt,
+		const mips_cpu_h state) {
 
+	const char* la = "arithmetically";
+	const char* dirn = "left";
+	uint32_t shift = shift_amt;
+	if (log) {
+		la = "logically";
+	}
+	if (drc) {
+		dirn = "right";
+	}
+	if (var) {
+		shift = src1_v;
+	}
+	if (state->debugLevel) {
+		fprintf(state->debugDest,
+				"Shifted value 0x%08x in reg %d by %d to the %s %s, reg %d now equals 0x%08x.\n",
+				src2_v, src2, shift, dirn, la, dest, dest_v);
+	}
+}
+/*
+*	END OF R-SHIFTS
+*/
 /*
  * R-MFMT HILO
  */
@@ -661,53 +757,54 @@ mips_error move_hilo(const uint32_t &fn_code, const uint32_t &dest,
 	}
 	return err;
 }
-
 /*
- * R-LESS THAN
+ * END OF R-MFMT HILO
  */
-mips_error less_than(uint32_t src1, uint32_t src2, uint32_t dest, uint32_t fn_code,
-		mips_cpu_h state) {
-	mips_error err = mips_Success;
-	if (dest == 0) {
-		return err;
-	}
-	uint32_t * dest_reg = &(state->regs[dest]);
-	uint32_t val_s = state->regs[src1];
-	uint32_t val_t = state->regs[src2];
-	switch (fn_code) {
-	case 0x2a: // SLT
-		if ((int32_t)val_s < (int32_t)val_t) {
-
-			*dest_reg = 1;
-		} else {
-			state->regs[dest] = 0;
-		}
-		break;
-	case 0x2b: // SLTU
-		if(state->debugLevel){fprintf(state->debugDest,
-								"%x < %x",val_s,val_t);}
-		if (val_s < val_t) {
-			*dest_reg = 1;
-		} else {
-			*dest_reg = 0;
-		}
-		break;
-	}
-	return err;
-}
+/*
+* R_MULT DIV
+*/
+mips_error mult_div(uint32_t src1, uint32_t src2, uint32_t fn_code,
+ 		mips_cpu_h state) {
+ 	mips_error err = mips_Success;
+ 	int64_t ans;
+ 	uint64_t u_ans;
+ 	int32_t hi, lo;
+ 	switch (fn_code) {
+ 	case 0x18: // MULT
+ 		// Cast to int first to sign extend correctly.
+ 		ans = ((int64_t)((int32_t)state->regs[src1])) * ((int64_t)((int32_t) state->regs[src2]));
+ 		if(state->debugLevel){fprintf(state->debugDest,
+ 						"0x%08x * 0x%08x = 0x%lx\n",
+ 						state->regs[src1],state->regs[src2],(uint64_t)ans);}
+ 		state->hi = (uint32_t) ((ans >> 32) & 0xFFFFFFFF);
+ 		state->lo = (uint32_t) (ans & 0xFFFFFFFF);
+ 		break;
+ 	case 0x19: // MULTU
+ 		u_ans = (uint64_t) state->regs[src1] * (uint64_t) state->regs[src2];
+ 		if(state->debugLevel){fprintf(state->debugDest,
+ 						"0x%08x * 0x%08x = 0x%lx\n",
+ 						state->regs[src1],state->regs[src2],u_ans);}
+ 		state->hi = (uint32_t) ((u_ans >> 32)) & 0xFFFFFFFF;
+ 		state->lo = (uint32_t) (u_ans & 0xFFFFFFFF);
+ 		break;
+ 	case 0x1a: //DIV
+ 		hi = ((int32_t) src1) / ((int32_t) src2);
+ 		lo = ((int32_t) src1) % ((int32_t) src2);
+ 		state->lo = (uint32_t) hi;
+ 		state->hi = (uint32_t) lo;
+ 		break;
+ 	case 0x1b: //DIVU
+ 		state->lo = src1 / src2;
+ 		state->hi = src1 % src2;
+ 	}
+ 	return err;
+ }
+/*
+ * END OF R_MULT DIV
+*/
 /*
  * R-ADD_SUB_BITWISE OPS
  */
-int overflow(uint32_t a, uint32_t b){
-	if ((a > 0) && (b > INT_MAX - a)){
-		return 1;
-	}
-	else if ((b >0) && (a > INT_MAX -a)){
-		return 1;
-	}
-	return 0;
-}
-
 mips_error add_sub_bitwise(uint32_t src1, uint32_t src2, uint32_t dest,
 		uint32_t fn_code, mips_cpu_h state) {
 	mips_error err = mips_Success;
@@ -756,132 +853,45 @@ mips_error add_sub_bitwise(uint32_t src1, uint32_t src2, uint32_t dest,
 	}
 	return err;
 }
-
 /*
- * R_MULT DIV
+ * END OF R-ADD_SUB_BITWISE OPS
  */
-
-mips_error mult_div(uint32_t src1, uint32_t src2, uint32_t fn_code,
+/*
+ * R-LESS THAN
+ */
+mips_error less_than(uint32_t src1, uint32_t src2, uint32_t dest, uint32_t fn_code,
 		mips_cpu_h state) {
 	mips_error err = mips_Success;
-	int64_t ans;
-	uint64_t u_ans;
-	int32_t hi, lo;
+	if (dest == 0) {
+		return err;
+	}
+	uint32_t * dest_reg = &(state->regs[dest]);
+	uint32_t val_s = state->regs[src1];
+	uint32_t val_t = state->regs[src2];
 	switch (fn_code) {
-	case 0x18: // MULT
-		// Cast to int first to sign extend correctly.
-		ans = ((int64_t)((int32_t)state->regs[src1])) * ((int64_t)((int32_t) state->regs[src2]));
+	case 0x2a: // SLT
+		if ((int32_t)val_s < (int32_t)val_t) {
+
+			*dest_reg = 1;
+		} else {
+			state->regs[dest] = 0;
+		}
+		break;
+	case 0x2b: // SLTU
 		if(state->debugLevel){fprintf(state->debugDest,
-						"0x%08x * 0x%08x = 0x%lx\n",
-						state->regs[src1],state->regs[src2],(uint64_t)ans);}
-		state->hi = (uint32_t) ((ans >> 32) & 0xFFFFFFFF);
-		state->lo = (uint32_t) (ans & 0xFFFFFFFF);
+								"%x < %x",val_s,val_t);}
+		if (val_s < val_t) {
+			*dest_reg = 1;
+		} else {
+			*dest_reg = 0;
+		}
 		break;
-	case 0x19: // MULTU
-		u_ans = (uint64_t) state->regs[src1] * (uint64_t) state->regs[src2];
-		if(state->debugLevel){fprintf(state->debugDest,
-						"0x%08x * 0x%08x = 0x%lx\n",
-						state->regs[src1],state->regs[src2],u_ans);}
-		state->hi = (uint32_t) ((u_ans >> 32)) & 0xFFFFFFFF;
-		state->lo = (uint32_t) (u_ans & 0xFFFFFFFF);
-		break;
-	case 0x1a: //DIV
-		hi = ((int32_t) src1) / ((int32_t) src2);
-		lo = ((int32_t) src1) % ((int32_t) src2);
-		state->lo = (uint32_t) hi;
-		state->hi = (uint32_t) lo;
-		break;
-	case 0x1b: //DIVU
-		state->lo = src1 / src2;
-		state->hi = src1 % src2;
 	}
 	return err;
 }
+/*
+ * ENF OF R-LESS THAN
+ */
 /*
  * END OF R-TYPE FUNCTIONS
  */
-
-/*
- * I-TYPE FUNCTIONS
- */
-mips_error cpu_execute_i(const uint32_t &s, const uint32_t &t, const uint16_t &i,
-		const uint32_t &opcode, mips_cpu_h state) {
-	mips_error err = mips_Success;
-	uint32_t val_s = state->regs[s];
-	uint32_t * val_t = &(state->regs[t]);
-	uint32_t * pc = &(state->pc);
-	int32_t sval_s = state->regs[s];
-	int32_t simm = (int16_t)i;
-	if(state->debugLevel){fprintf(state->debugDest,
-					"Simm = 0x%x\n",
-					i);}
-	uint32_t imm = i;
-	if (opcode > 0xf) {
-		err = cpu_memory_funcs(opcode, s, t, i, state);
-	}
-	switch (opcode) {
-	case 0x4: // BEQ (sign extend)
-		if ((val_s) == (*val_t)) {
-			err = mips_cpu_jump((simm << 2) + (*pc+4), 0, state);
-			return err;
-		}
-		break;
-	case 0x5: // BNE (sign extend)
-		if ((val_s) != (*val_t)) {
-			err = mips_cpu_jump((simm << 2) + (*pc+4), 0, state);
-			return err;
-		}
-		break;
-	case 0x6: //BLEZ (sign extend)
-		if (sval_s <= 0x0) {
-			err = mips_cpu_jump((simm << 2) + (*pc+4), 0, state);
-			return err;
-		}
-		break;
-	case 0x7: // BGTZ (sign extend)
-		if (sval_s > 0x0) {
-			err = mips_cpu_jump((simm << 2) + (*pc+4), 0, state);
-			return err;
-		}
-		break;
-	case 0x8: // ADDI (sign extend)
-		//if (overflow(sval_s+i)){
-		//	return mips_ExceptionArithmeticOverflow;)
-		//}
-		*val_t = sval_s + simm;
-		break;
-	case 0x9: // ADDUI
-		*val_t = sval_s + simm;
-		break;
-	case 0xa: // SLTI (sign extend)
-		if (sval_s < simm) {
-			*val_t = 0x1;
-		} else {
-			*val_t = 0x0;
-		}
-		break;
-	case 0xb: //STLIU
-		if (val_s < imm) {
-			*val_t = 0x1;
-		} else {
-			*val_t = 0x0;
-		}
-		break;
-	case 0xc: // ANDI (no sign extend)
-		*val_t = (val_s) & imm;
-		break;
-	case 0xd: //ORI
-		*val_t = (val_s) | imm;
-		break;
-	case 0xe: //XORI
-		*val_t = (val_s) ^ imm;
-		break;
-	case 0xf: //LUI
-		*val_t = (imm << 16);
-		break;
-	}
-	if (err !=mips_Success){
-		return err;
-	};
-	return err;
-}
