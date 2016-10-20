@@ -1,7 +1,7 @@
 # Binaries
-*run_addu
-*run_fibonacci
-*test_mips
+*
+!/**/
+!*.*
 /doc/html
 /doc/latex
 # Prerequisites
