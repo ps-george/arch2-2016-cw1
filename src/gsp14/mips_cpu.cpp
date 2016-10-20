@@ -70,8 +70,8 @@ struct mips_cpu_impl {
 	uint32_t hi;
 	uint32_t lo;
 	uint32_t dslot;
-	uint32_t Jpc;
-	uint32_t Npc;
+	uint32_t jPC;
+	uint32_t nPC;
 };
 
 mips_cpu_h mips_cpu_create(mips_mem_h mem) {
@@ -86,31 +86,27 @@ mips_cpu_h mips_cpu_create(mips_mem_h mem) {
 	state->debugDest = NULL;
 	state->mem = mem;
 	state->dslot=0;
-	state->Npc = 4;
-	state->Jpc = 0;
+	state->nPC = 4;
+	state->jPC = 0;
 	return state;
 }
 /*!
- * If there isn't anything in the delay slot, then it is a normal instruction
- * and we need to increment the PC. If there is something in the delay slot,
- * we don't increment the PC because PC has been set to the jump location.
- * Instead we set the delay slot to 0 because it is the end of the delay slot
- * instruction execution.
+ * Change the pc to nPC
+ * If delay slot flag is up, we put the flag down, and set the nPC to jPC.
  * @param state - mips_cpu_h
  */
-//! \todo ERROR IS HERE
 void mips_cpu_increment_pc(mips_cpu_h state){
 	//! If there is no instruction in the delay slot, normal operation, change pc to npc
-	state->pc=state->Npc;
+	state->pc=state->nPC;
 	if(!state->dslot){
-		state->Npc = (state->pc)+4;
+		state->nPC = (state->pc)+4;
 	}
 	//! If there is an instruction in the delay slot, we have just tried to execute it so
-	//! remove it. Set pc to Jpc. Set Jpc to 0.
+	//! remove it. Set pc to jPC. Set jPC to 0.
 	else{
 		state->dslot=0;
-		state->Npc = state->Jpc;
-		state->Jpc = 0;
+		state->nPC = state->jPC;
+		state->jPC = 0;
 	}
 }
 
@@ -128,8 +124,8 @@ mips_error mips_cpu_reset(mips_cpu_h state) {
 		fprintf(state->debugDest, "%s\n", state_str.c_str());
 	}
 	state->dslot=0;
-	state->Npc = 4;
-	state->Jpc = 0;
+	state->nPC = 4;
+	state->jPC = 0;
 	return mips_Success;
 }
 
@@ -386,7 +382,7 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, uint32_t i,
 string mips_cpu_print_state(mips_cpu_h state) {
 	stringstream msg;
 	msg << "-------------" << endl;
-	msg << "pc: " << state->pc << "Npc: " << state->Npc << "Jpc: " << state->Jpc << endl;
+	msg << "pc: " << state->pc << "nPC: " << state->nPC << "jPC: " << state->jPC << endl;
 	for (unsigned i = 0; i < 32; i++) {
 		msg << "Reg ";
 		if (i < 10) {
@@ -423,10 +419,10 @@ mips_error mips_cpu_jump(uint32_t target, uint32_t link, mips_cpu_h state) {
 		return mips_ExceptionInvalidAlignment;
 	}
 	if (state->debugLevel) {
-		fprintf(state->debugDest, "Jumping PC from %d to %d", state->Jpc, target);
+		fprintf(state->debugDest, "Jumping PC from %d to %d", state->jPC, target);
 	}
 	state->dslot=1;
-	state->Jpc = target;
+	state->jPC = target;
 	return err;
 }
 
