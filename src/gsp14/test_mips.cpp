@@ -514,12 +514,10 @@ int main(int argc, char* argv[])
 	// Create cpu
 	mips_cpu_h cpu = mips_cpu_create(mem);
 
-	// Set debug level
-	set_debug_level(argc,argv,cpu);
-
+	// Get & Set debug level
+	int debugLevel = set_debug_level(argc,argv,cpu);
 	// Prepare for tests
 	mips_test_begin_suite();
-
 	// Test that all 32 registers exist and contain uint32_t
 
 	// Read test_spec into vector of strings
@@ -560,12 +558,12 @@ int parse_test_spec(string filename, vector<vector<string> > &spec){
 	return 0;
 }
 
-void set_debug_level(int argc, char* argv[],mips_cpu_h cpu){
+int set_debug_level(int argc, char* argv[],mips_cpu_h cpu){
 	unsigned level = 0;
 	FILE * dest;
 	const char* filename;
 	if (argc<3){
-		return;
+		return 0;
 	}
 	if (!strcmp(argv[1],"-d")){
 		level = atoi(argv[2]);
@@ -585,5 +583,5 @@ void set_debug_level(int argc, char* argv[],mips_cpu_h cpu){
 	}
 	cout << "Set debug level to: " << level << ". Print output to: " << filename;
 	mips_cpu_set_debug_level(cpu,level,dest);
-	return;
+	return level;
 }
