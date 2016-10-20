@@ -80,16 +80,13 @@ const std::map<uint32_t, std::string> op_to_str{
 	{0x2e,"SWR"}
 };
 
-
-map<string, uint32_t> ij_to_op;
-
 struct model_state{
 	uint32_t pc;
 	uint32_t regs[32];
 	model_state(mips_cpu_h cpu, uint32_t val, uint32_t dest, uint32_t Npc);
 	model_state();
-
 };
+
 // Model based on actual state of the CPU, except with desired values inside.
 model_state::model_state(mips_cpu_h cpu, uint32_t val, uint32_t dest, uint32_t Npc){
 	uint32_t tmp_val;
@@ -567,12 +564,14 @@ void set_debug_level(int argc, char* argv[],mips_cpu_h cpu){
 	unsigned level = 0;
 	FILE * dest;
 	const char* filename;
-	for (int i=0;i<argc;i++){
-		if (!strcmp(argv[i],"-d")){
-			level = atoi(argv[i+1]);
-		}
-		if (!strcmp(argv[i],"-f")){
-			filename = argv[i+1];
+	if (argc<3){
+		return;
+	}
+	if (!strcmp(argv[1],"-d")){
+		level = atoi(argv[2]);
+		dest = stdout;
+		if (argc>4&&(!strcmp(argv[3],"-f"))){
+			filename = argv[4];
 			if (!strcmp(filename,"stdout")){
 				dest = stdout;
 			}
@@ -584,5 +583,7 @@ void set_debug_level(int argc, char* argv[],mips_cpu_h cpu){
 			}
 		}
 	}
+	cout << "Set debug level to: " << level << ". Print output to: " << filename;
 	mips_cpu_set_debug_level(cpu,level,dest);
+	return;
 }
