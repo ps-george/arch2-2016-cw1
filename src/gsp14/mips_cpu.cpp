@@ -70,6 +70,7 @@ struct mips_cpu_impl {
 	uint32_t hi;
 	uint32_t lo;
 	uint32_t dslot;
+	uint32_t Npc;
 };
 
 mips_cpu_h mips_cpu_create(mips_mem_h mem) {
@@ -84,6 +85,7 @@ mips_cpu_h mips_cpu_create(mips_mem_h mem) {
 	state->debugDest = NULL;
 	state->mem = mem;
 	state->dslot=0;
+	state->Npc = 4;
 	return state;
 }
 /*!
@@ -255,7 +257,6 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 			string state_str = mips_cpu_print_state(state);
 			fprintf(state->debugDest, "%s\n", state_str.c_str());
 		}
-
 	return err;
 }
 mips_error mips_cpu_set_debug_level(mips_cpu_h state, unsigned level,
@@ -603,16 +604,19 @@ mips_error r_shift(uint32_t src1, uint32_t src2, uint32_t dest, uint32_t shift_a
 
 	switch (fn_code) {
 	case 0x0: // SLL - Shift left logical (shift src2 left by shift_amt and put into dest)
+		if(src1){return mips_ExceptionInvalidInstruction;}
 		*dest_reg = *src2_reg << shift_amt;
 		print_shift_debug(1, 0, 0, *src1_reg, src2, *src2_reg, dest, *dest_reg,
 				shift_amt, state);
 		break;
 	case 0x2: // SRL - Shift right logical
+		if(src1){return mips_ExceptionInvalidInstruction;}
 		*dest_reg = *src2_reg >> shift_amt;
 		print_shift_debug(1, 1, 0, *src1_reg, src2, *src2_reg, dest, *dest_reg,
 				shift_amt, state);
 		break;
 	case 0x3: // SRA - Shift right arithmetic
+		if(src1){return mips_ExceptionInvalidInstruction;}
 		*dest_reg = ((int32_t) *src2_reg) >> shift_amt;
 		print_shift_debug(0, 1, 0, *src1_reg, src2, *src2_reg, dest, *dest_reg,
 				shift_amt, state);
@@ -909,5 +913,4 @@ mips_error cpu_execute_i(const uint32_t &s, const uint32_t &t, const uint16_t &i
 	};
     mips_cpu_increment_pc(state);
 	return err;
-
 }
