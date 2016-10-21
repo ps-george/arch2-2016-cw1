@@ -44,11 +44,12 @@ int main(int argc, char *argv[])
 
     uint32_t steps=0;
     while(!mips_cpu_step(c)){
-        fprintf(stderr, "Step %d.\n", steps);
-        ++steps;
+        //fprintf(stderr, "Step %d.\n", steps);
+    	++steps;
         uint32_t pc;
         mips_cpu_get_pc(c, &pc);
         if(pc==sentinelPC)
+        	fprintf(stderr, "Step %d.\n", steps);
             break;
     }
 
