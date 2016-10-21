@@ -26,6 +26,8 @@ typedef enum _instr_type{
 	instr_I_type = 0x3
 }instr_type;
 
+std::map<std::string, uint32_t> ij_to_op;
+
 uint32_t s_to_ui(std::string s){return (uint32_t)strtol(s.c_str(),NULL,0);}
 int32_t s_to_i(std::string s){return (int32_t)strtol(s.c_str(),NULL,0);}
 
@@ -113,6 +115,7 @@ void test_j_type(const std::vector<std::string> &row, result_set &results, mips_
  */
 void test_i_type(const std::vector<std::string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu);
 
+//! All below not implemented fully yet.
 /*!
  * \todo Not implemented yet.
  * @param row
@@ -122,6 +125,15 @@ void test_i_type(const std::vector<std::string> &row, result_set &results, mips_
  */
 void test_normal_functions(const std::vector<std::string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu);
 
-std::map<std::string, uint32_t> ij_to_op;
+void test_branch_functions(const std::vector<std::string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu);
+
+//! Could include in one umbrella function
+void test_memory_write_functions(const std::vector<std::string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu);
+void test_memory_read_functions(const std::vector<std::string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu);
+
+//! Could include in one umbrella function
+void test_mtmf_fucntions(const std::vector<std::string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu);
+void test_multdiv_functions(const std::vector<std::string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu);
+
 
 #endif /* SRC_GSP14_TEST_MIPS_H_ */
