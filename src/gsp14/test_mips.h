@@ -20,16 +20,25 @@ struct result_set;
 struct model_state;
 
 typedef enum _instr_type{
-  instr_R_type =0,
-	instr_RT_type = 0x1,
-	instr_J_type = 0x2,
-	instr_I_type = 0x3
+  instr_R_type =0x1,
+  instr_RT_type = 0x2,
+  instr_J_type = 0x3,
+  instr_I_type = 0x4
 }instr_type;
+
+typedef enum _test_type{
+ test_Normal = 0x1,
+ test_Branch = 0x2,
+ test_MemWrite = 0x3,
+ test_MemRead = 0x4,
+ test_MTMF = 0x5,
+ test_MultDiv = 0x6
+}_test_type;
 
 std::map<std::string, uint32_t> ij_to_op;
 
 uint32_t s_to_ui(std::string s){return (uint32_t)strtol(s.c_str(),NULL,0);}
-int32_t s_to_i(std::string s){return (int32_t)strtol(s.c_str(),NULL,0);}
+int32_t s_to_i(std::string s){return (int32_t)((int16_t)strtol(s.c_str(),NULL,0));}
 
 /*!
  * Parses the filename specified, and saves each parameter in a row into a string vector,
@@ -53,17 +62,15 @@ int parse_test_spec(std::string filename, std::vector<std::vector<std::string> >
 int set_debug_level(int argc, char* argv[], mips_cpu_h cpu);
 
 /*!
- * Constructs a bitstream to be written to memory depending on the contents of params.
- * \todo Maybe instead of checking first item of params vector, should take another input
- * (Separation of concerns) - params is parameters, uint8_t type is the type.
- * Sounds like a good idea, may do that later.
+ * Constructs a bitstream to be written to memory depending on the function name, type and the contents of params.
  * @param func - Name of the function e.g. "ADD", or "ADDIU"
+ * @param type - Type of the function e.g. instr_R_type
  * @param params - Vector of uint32_ts, passed by reference to avoid unnecessary copying. First item determines instruction type.
  * @return
  */
-uint32_t test_construct_bitstream(std::string func,const std::vector<uint32_t> &params);
+uint32_t test_construct_bitstream(std::string func, const uint32_t type, const std::vector<uint32_t> &params);
 
-void compare_model(mips_cpu_h cpu, model_state model, result_set &results);
+int compare_model(mips_cpu_h cpu, model_state model, result_set &results);
 
 int mips_test_check_err(mips_error err, result_set &results);
 
@@ -115,7 +122,11 @@ void test_j_type(const std::vector<std::string> &row, result_set &results, mips_
  */
 void test_i_type(const std::vector<std::string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu);
 
+bool not_digit(std::string line);
+
 //! All below not implemented fully yet.
+void run_spec2(const std::vector<std::vector<std::string>> &spec, mips_mem_h mem, mips_cpu_h cpu);
+
 /*!
  * \todo Not implemented yet.
  * @param row
