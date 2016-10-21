@@ -250,7 +250,7 @@ int set_debug_level(int argc, char* argv[],mips_cpu_h cpu){
  * Take in a list of params and function name and construct a bitstream for MIPS from it.
  * @param params - s,t,d,h for R-type; s,i for RT-type; j for J type; s,t,i for I type
  * @param func - string containing the function name
- * @return
+ * @return uint32_t bigendian bitstream to be written to memory.
  */
 // CONSTRUCT BIT STREAM
 uint32_t test_construct_bitstream(string func,const vector<uint32_t> &params){
@@ -337,7 +337,7 @@ void run_spec(const vector<vector<string>> &spec, mips_mem_h mem, mips_cpu_h cpu
 	for (uint i=0; i<spec.size();i++){
 		if (spec[i][0]=="Rtype"||spec[i][0]=="RTtype"||spec[i][0]=="Jtype"||spec[i][0]=="Itype"){
 			// Ignore header rows
-			cout << "ignore " << spec[i][0] << endl;
+			cout << "Ignore " << spec[i][0] << " header row." << endl;
 			continue;
 		}
 		type = s_to_ui(spec[i][0]);
@@ -368,14 +368,7 @@ void run_spec(const vector<vector<string>> &spec, mips_mem_h mem, mips_cpu_h cpu
 		mips_test_end_test(testId, results.passed, results.msg.c_str());
 	}
 }
-// Could split into different functions which are more specific
-// Would have to define these categories myself, but for example: R-type normal, R-type branch, R-type MULT/DIV; I-type normal, I-type branch, I-type memory; J-type;
-// Use a_loc to define the type -> perhaps 0x10 normal R-type, 0x11 R-type branch etc, and this would define which bits of the .csv are used.
-// 0x20 I-type normal, 0x21 I-type branch, 0x22 I-type memory
-// And have a function which tests normal (r-type and i-type), a function which tests branches (R, RT, J and I type), a function which tests memory (I-type).
-// Could have helper functions which set the variables according to which type i.e. for I-type it will set s, t and i, and then construct the bitstream using I-type
-// This would mean a function for each type of testing. At the moment we have a function for each type of instruction, which means lots of if clauses to figure out
-// how to test that particular function
+
 // R-type Functions
 void test_r_type(const vector<string> &row,result_set &results, mips_mem_h mem, mips_cpu_h cpu){
 	// Initialise.
@@ -624,3 +617,171 @@ void test_i_type(const vector<string> &row, result_set &results, mips_mem_h mem,
 	}
 }
 // END OF I-type functions
+
+// Could split into different functions which are more specific
+// Would have to define these categories myself, but for example: R-type normal, R-type branch, R-type MULT/DIV; I-type normal, I-type branch, I-type memory; J-type;
+// Use a_loc to define the type -> perhaps 0x10 normal R-type, 0x11 R-type branch etc, and this would define which bits of the .csv are used.
+// 0x30 I-type normal, 0x31 I-type branch, 0x32 I-type memory
+// And have a function which tests normal (r-type and i-type), a function which tests branches (R, RT, J and I type), a function which tests memory (I-type).
+// Could have helper functions which set the variables according to which type i.e. for I-type it will set s, t and i, and then construct the bitstream using I-type
+// This would mean a function for each type of testing. At the moment we have a function for each type of instruction, which means lots of if clauses to figure out
+// how to test that particular function
+
+// This would be selected depending on the first half byte of the first item in the row
+// This is just normal operations which means one answer that appears in the dest reg OR an error
+// Can confirm, this looks much nicer than the previous way
+
+//! \todo finish this function, write .csv for testing normal functions
+//! These are the simplest instructions to test, just need to check dest reg for correct value or error code
+void test_normal_functions(const vector<string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu){
+	// Initialise
+
+	// Get parameter values from row
+	// These would depend on the type (i.e. second half byte of first item in the row)
+	uint32_t byte2 = s_to_ui(row[0])>>4;
+	uint32_t instruction_bits;
+	switch(byte2){
+	case 0x1:
+		// This would be R-type functions
+		uint32_t s,t,d,h;
+		// Create r-type bitstream
+
+		// Set t register
+
+		break;
+	case 0x2:
+		// This would be RT-type functions but there are none of these in the normal category
+		// Shouldn't be here
+		cout << "RT-type instruction ended up in normal handler, shouldn't be here." << endl;
+		results.passed = 0;
+		return;
+	case 0x3:
+		// This would be I-type functions
+
+
+		break;
+	case 0x4:
+		// This would be J-type functions but again none in the normal testing category
+		cout << "J-type instruction ended up in normal handler, shouldn't be here." << endl;
+		results.passed = 0;
+		return;
+	default:
+		cout << "Strange instruction type code ended up in normal handler, shouldn't be here." << endl;
+		results.passed = 0;
+		return;
+	}
+	// We always set s register because it is common to I and R-type
+	//mips_cpu_set_register()
+	// Create model_state
+	//model_state model();
+	// Write bitstream to memory
+	//mips_mem_write(mem, loc, 4,(uint8_t*)&instruction_bits);
+	// Step CPU
+	//err = mips_cpu_step();
+
+
+	// if err is expected, check error type is correct and update results.
+
+	// else compare model state to actual state and update results
+	return;
+
+}
+
+//! These are the most complicated instructions to test, involving multiple steps and checking.
+void test_branch_functions(const vector<string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu){
+	// Initialise variables
+
+	// Get parameter values from row
+	// Get parameter values from row
+	// These would depend on the type (i.e. second half byte of first item in the row)
+	uint32_t byte2 = s_to_ui(row[0])>>4;
+	uint32_t instruction_bits;
+
+	// Different variations of this code are repeated each time, can they be put into one function?
+	// I guess I could refer to the vector directly and not name the variables, but then I lose clarity
+	// I like the clarity of naming each of the variables otherwise I might get confused.
+	switch(byte2){
+	case 0x1:
+		// This would be R-type functions
+		uint32_t s,t;
+		// d and h are not used for R-type jump instructions. t is used as destination for JRAL.
+
+		// Create r-type bitstream
+		//test_construct_bitstream(func,params);
+		// Set t register to see if it gets overwritten correctly.
+		break;
+	case 0x2:
+		// This would be RT-type functions
+		results.passed = 0;
+		break;
+	case 0x3:
+		// This would be I-type functions
+		uint32_t i;
+		// Set s register value, s is used for offset
+		// Set register 32 to something random, see if it gets overwritten correctly.
+		break;
+	case 0x4:
+		// This would be J-type functions
+		uint32_t j;
+		// Set register 31 to something random, see if it gets overwritten correctly.
+
+		results.passed = 0;
+		break;
+	default:
+		cout << "Strange instruction type code ended up in branch handler, shouldn't be here." << endl;
+		results.passed = 0;
+		return;
+	}
+	// If expecting an error code when we step, i.e. jumped too far forwards/backwards or mis-alignment, write one instruction
+	// Step CPU once, check error code.
+	// return
+
+	//if
+	// If expecting no branch,
+	// Check whether need to execute delay_slot or not (RT instructions do not I think)
+		// Create model state (is this necessary for branch instructions - Yes, we want to check PC is correct for delay slot instr
+		// And then check PC is correct later for the instruction jumped to
+		// Whilst also checking none of the other registers have changed
+		// Need at least 2 model states. Probably 3.
+		// If they do, need to write three instructions to memory and step twice, check that delay slot was not executed.
+		// And instruction after delay slot was executed
+		// If they don't, check that link register was set correctly (if specified) (unconditional set according to github issues)
+
+	// else
+	// If expecting successful branch or a jump
+		// Create model state (is this necessary for branch instructions - Yes, we want to check PC is correct for delay slot instr
+		// And then check PC is correct later for the instruction jumped to
+		// Whilst also checking none of the other registers have changed
+		// Need at least 2 model states. Probably 3.
+		// Write three instructions to memory, step three times, check delay slot and jumped to instruction work
+		// Step CPU, check reutrn address has been set (if specified)
+		// Step CPU, check delay slot has executed
+		// Step CPU, check instruction at jump location has executed
+	//
+	//mips_mem_write(mem, loc, 4,(uint8_t*)&instruction_bits);
+	return;
+}
+//! These are quite simple to test, need to write a specified value to a memory location using the cpu
+//! then check the memory for correct written value. These are all I-type instructions.
+void test_write_memory_functions(const vector<string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu){
+
+}
+
+//! These are quite simple to test. Write specified value to memory location using mips_mem_write
+//! Then check the memory for correct value using cpu function. Again, all I-type functions
+void test_read_memory_functions(const vector<string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu){
+
+}
+
+//! These functions require their sister functions to work in order to be tested properly
+void test_mtmf_functions(const vector<string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu){
+
+}
+//! These are fairly complicated to test, since they require multiple steps through the CPU.
+//! Require MFHI MFLO to be working in order to test as well.
+void test_multdiv_functions(const vector<string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu){
+
+}
+
+
+
