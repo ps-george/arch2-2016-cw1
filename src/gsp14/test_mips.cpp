@@ -281,7 +281,6 @@ uint32_t test_construct_bitstream(string func, const uint32_t type, const vector
 		bitstream = ij_to_op.at(func)<<26|(s<<21)|(t<<16)|i;
 		break;
 	}
-	cout << "0x" << hex << bitstream;
 	bitstream = __builtin_bswap32(bitstream);
 	return bitstream;
 }
@@ -661,7 +660,7 @@ void run_spec2(const vector<vector<string>> &spec, mips_mem_h mem, mips_cpu_h cp
 		testId = mips_test_begin_test(func.c_str());
 		// Reset CPU
 		mips_cpu_reset(cpu);
-
+		// cout << "0x" << hex << type << dec << endl;
 		switch(type){
 		case test_Normal: // 0x1
 			test_normal_functions(spec[i],results,mem,cpu);
@@ -676,8 +675,10 @@ void run_spec2(const vector<vector<string>> &spec, mips_mem_h mem, mips_cpu_h cp
 		case test_MTMF: //0x5
 			break;
 		case test_MultDiv: //0x6
+			test_multdiv_functions(spec[i], results, mem, cpu);
 			break;
 		default:
+			results.passed = 0;
 			cout << "Didn't recognise type " << type << "skipping test." << endl;
 			continue;
 		}
@@ -713,6 +714,8 @@ void test_normal_functions(const vector<string> &row, result_set &results, mips_
 		params = {s,t,dest,h};
 		instruction_bits = test_construct_bitstream(func,instr_R_type, params);
 		// Set t register
+		// Set d_val to non-zero because it should be overwritten
+		err = mips_cpu_set_register(cpu, dest, 11);
 		err = mips_cpu_set_register(cpu, t, t_val);
 		break;
 	case instr_RT_type:
@@ -727,6 +730,7 @@ void test_normal_functions(const vector<string> &row, result_set &results, mips_
 		s_val = s_to_ui(row[6]);
 		params = {s,dest,i};
 		instruction_bits = test_construct_bitstream(func, instr_I_type, params);
+		err = mips_cpu_set_register(cpu, dest, 11);
 		break;
 	case instr_J_type:
 		// This would be J-type functions but again none in the normal testing category
@@ -738,10 +742,9 @@ void test_normal_functions(const vector<string> &row, result_set &results, mips_
 		results.passed = 0;
 		return;
 	}
+
 	// We always set s register because it is common to I and R-type
 	err = mips_cpu_set_register(cpu, s, s_val);
-	// Set d_val to non-zero because it should be overwritten
-	err = mips_cpu_set_register(cpu, dest, 11);
 	// Write bitstream to memory
 	err = mips_mem_write(mem, 0, 4,(uint8_t*)&instruction_bits);
 	// Create model
@@ -751,7 +754,7 @@ void test_normal_functions(const vector<string> &row, result_set &results, mips_
 	if (exp_err||err){
 		if (err != exp_err){
 			results.passed = 0;
-			cout << hex << "Incorrect error message " << err << " was expecting " << exp_err << endl;
+			cout << hex << "Incorrect error message " << err << " was expecting " << exp_err << dec <<endl;
 		}
 		return;
 	}
