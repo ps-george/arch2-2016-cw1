@@ -16,7 +16,7 @@
 using namespace std;
 
 /*
-* MAP/STRUCT DEFINITIONS
+* MAP DEFINITIONS
 */
 const std::map<std::string, uint32_t> r_to_op{
 	{"SLL",0x0},
@@ -82,7 +82,12 @@ const std::map<uint32_t, std::string> op_to_str{
 	{0x2b,"SW"},
 	{0x2e,"SWR"}
 };
-
+/*
+ * END OF MAP DEFINITIONS
+ */
+/*
+ * STRUCT DEFINITIONS
+ */
 struct model_state{
 	uint32_t pc;
 	uint32_t regs[32];
@@ -133,8 +138,9 @@ result_set::result_set(int passed_in){
 	ans2 = 0;
 }
 /*
-* END OF DEFINITIONS
+* END OF STRUCT DEFINITIONS
 */
+
 /*
 * MAIN FUNCTION
 */
@@ -166,6 +172,7 @@ int main(int argc, char* argv[])
 
 	// Read test_spec into vector of strings
 	vector<vector<string> > spec1;
+	// Could pass debug level into this function and use it to help debug the test program.
 	parse_test_spec("mips_test_spec.csv", spec1);
 
 	// Execute test spec
