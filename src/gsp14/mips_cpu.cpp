@@ -190,15 +190,17 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 	// Read the memory location defined by PC
 	uint32_t val_b, val_l;
 	mips_error err = mips_Success;
+	/*
 	if (state->delay_slot){
 		//! If there is a delay slot
 		val_l = __builtin_bswap32(state->delay_slot);
 	}
-	else{
-		err = mips_mem_read(state->mem, state->pc, 4, (uint8_t*) &val_b);
-		// Convert from big-endian to little-endian
-		val_l = __builtin_bswap32(val_b);
-	}
+	*/
+
+	err = mips_mem_read(state->mem, state->pc, 4, (uint8_t*) &val_b);
+	// Convert from big-endian to little-endian
+	val_l = __builtin_bswap32(val_b);
+
 	if (state->debugLevel) {
 				fprintf(state->debugDest, "\nCPU state - before step.\n");
 				string state_str = mips_cpu_print_state(state);
@@ -267,7 +269,12 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 			string state_str = mips_cpu_print_state(state);
 			fprintf(state->debugDest, "%s\n", state_str.c_str());
 		}
-	if (err==mips_Success){
+	/*
+	"By convention, if an exception or interrupt prevents the completion of an
+	instruction occupying a branch delay slot, the instruction stream is continued by
+	re-executing the branch instruction."
+	*/
+	if (err==mips_Success || state->delay_slot){
 		mips_cpu_increment_pc(state);
 	}
 	return err;
@@ -311,7 +318,7 @@ void mips_cpu_increment_pc(mips_cpu_h state){
 	 state->nPC = (state->pc)+4;
  }
  //! If there is an instruction in the delay slot, we have just tried to execute it so
- //! remove it. Set pc to jPC. Set jPC to 0.
+ //! remove the flag. Set pc to jPC. Set jPC to 0.
  else{
 	 state->delay_slot=0;
 	 state->nPC = state->jPC;
