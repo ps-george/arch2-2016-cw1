@@ -264,6 +264,9 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 	} else {
 		return mips_ExceptionInvalidInstruction;
 	}
+	if (err==mips_Success || state->delay_slot){
+		mips_cpu_increment_pc(state);
+	}
 	if (state->debugLevel) {
 			fprintf(state->debugDest, "\nCPU stepped - new state below.\n");
 			string state_str = mips_cpu_print_state(state);
@@ -274,9 +277,10 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 	instruction occupying a branch delay slot, the instruction stream is continued by
 	re-executing the branch instruction."
 	*/
-	if (err==mips_Success || state->delay_slot){
-		mips_cpu_increment_pc(state);
-	}
+
+	if (state->debugLevel) {
+			fprintf(state->debugDest, "Error message: 0x%x\n",err);
+		}
 	return err;
 }
 
@@ -313,17 +317,21 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 
 void mips_cpu_increment_pc(mips_cpu_h state){
  //! If there is no instruction in the delay slot, normal operation, change pc to npc
- state->pc=state->nPC;
- if(!state->delay_slot){
-	 state->nPC = (state->pc)+4;
- }
- //! If there is an instruction in the delay slot, we have just tried to execute it so
- //! remove the flag. Set pc to jPC. Set jPC to 0.
- else{
-	 state->delay_slot=0;
-	 state->nPC = state->jPC;
-	 state->jPC = 0;
- }
+	if (state->debugLevel) {
+		fprintf(state->debugDest, "PC: %d nPC: %d delay_slot: %d", state->pc, state->nPC, state->delay_slot);
+	}
+	state->pc=state->nPC;
+
+	if(!state->delay_slot){
+		state->nPC = (state->pc)+4;
+	}
+	//! If there is an instruction in the delay slot, we have just tried to execute it so
+	//! remove the flag. Set pc to jPC. Set jPC to 0.
+	else{
+		state->delay_slot=0;
+		state->nPC = state->jPC;
+		state->jPC = 0;
+	}
 }
 
  void cpu_decode_instr(const uint32_t &bytes, uint32_t &op, uint32_t &s,
