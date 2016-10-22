@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
         }
         offset+=4;
     }
-    fprintf(stderr, "Loaded %d bytes of binary at address 0.", offset);
+    fprintf(stderr, "Loaded %d bytes of binary at address 0.\n", offset);
     
     fclose(src);
     
