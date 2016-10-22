@@ -127,7 +127,7 @@ void print_shift_debug(
  * @param state - CPU handler
  * @return mips erro
  */
-mips_error move_hilo(const uint32_t &fn_code, const uint32_t &dest, mips_cpu_h &state);
+mips_error move_hilo(const uint32_t &fn_code, const uint32_t &src1, const uint32_t &dest, mips_cpu_h &state);
 
 /*!
  *

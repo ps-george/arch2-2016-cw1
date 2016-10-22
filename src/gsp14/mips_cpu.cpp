@@ -171,6 +171,9 @@ mips_error mips_cpu_set_debug_level(mips_cpu_h state, unsigned level,
 	mips_error err = mips_Success;
 	state->debugLevel = level;
 	state->debugDest = dest;
+	if (!dest){
+		state->debugDest = stderr;
+	}
 	if (level > 0) {
 		fprintf(dest, "Setting debug level to %d.\n", level);
 		fprintf(dest, "%s", mips_cpu_print_state(state).c_str());
@@ -631,16 +634,16 @@ mips_error cpu_execute_r(uint32_t src1, uint32_t src2, uint32_t dest,
 		err = mips_cpu_jump(state->regs[src1], 0, state);
 	} else if (fn_code == 0x9) {
 		// JRAL
-		err = mips_cpu_jump(state->regs[src1], dest, state);
+		err = mips_cpu_jump(state->regs[src1], src2, state);
 	} else if ((0xf < fn_code) && (fn_code < 0x14)) {
 		// MFHI, MTHI, MFLO, MTLO
-		err = move_hilo(fn_code, dest, state);
+		if (shift_amt||src2){return mips_ExceptionInvalidInstruction;}
+		err = move_hilo(fn_code, src1, dest, state);
 	}
 
 	else if ((0x17 < fn_code) && (fn_code < 0x1c)) {
 		// MULT, MULTU, DIV, DIVU
-		if (dest||shift_amt){return mips_ExceptionInvalidInstruction;
-		}
+		if (dest||shift_amt){return mips_ExceptionInvalidInstruction;}
 		err= mult_div(src1, src2, fn_code, state);
 	} else if ((0x1f < fn_code) && (fn_code < 0x28)) {
 		// ADD, ADDU, SUB, SUBU AND,OR, XOR, NOR etc
@@ -746,28 +749,31 @@ void print_shift_debug(
 /*
  * R-MFMT HILO
  */
-mips_error move_hilo(const uint32_t &fn_code, const uint32_t &dest,
+mips_error move_hilo(const uint32_t &fn_code, const uint32_t &src1,const uint32_t &dest,
 		mips_cpu_h &state) {
 	mips_error err = mips_Success;
 	if (dest==0){
-		state->pc +=4;
 		return err;
 	}
 	switch (fn_code) {
 	case 0x10: // MFHI
+		if (src1){return mips_ExceptionInvalidInstruction;}
 		state->regs[dest] = state->hi;
 		break;
 	case 0x11: // MTHI
-		state->hi = state->regs[dest];
+		if (dest){return mips_ExceptionInvalidInstruction;}
+		state->hi = state->regs[src1];
 		break;
 	case 0x12: // MFLO
+		if (src1){return mips_ExceptionInvalidInstruction;}
 		if(state->debugLevel){fprintf(state->debugDest,
 						"Moving 0x%08x from lo to reg %d\n",
 						state->lo, dest);}
 		state->regs[dest] = state->lo;
 		break;
 	case 0x13: // MTLO
-		state->regs[dest] = state->lo;
+		if (dest){return mips_ExceptionInvalidInstruction;}
+		state->regs[src1] = state->lo;
 		break;
 	}
 	return err;
@@ -784,33 +790,43 @@ mips_error mult_div(uint32_t src1, uint32_t src2, uint32_t fn_code,
  	int64_t ans;
  	uint64_t u_ans;
  	int32_t hi, lo;
+ 	uint32_t val_s = state->regs[src1];
+ 	uint32_t val_t = state->regs[src2];
  	switch (fn_code) {
  	case 0x18: // MULT
  		// Cast to int first to sign extend correctly.
- 		ans = ((int64_t)((int32_t)state->regs[src1])) * ((int64_t)((int32_t) state->regs[src2]));
+ 		ans = ((int64_t)((int32_t)val_s)) * ((int64_t)((int32_t) val_t));
  		if(state->debugLevel){fprintf(state->debugDest,
  						"0x%08x * 0x%08x = 0x%lx\n",
- 						state->regs[src1],state->regs[src2],(uint64_t)ans);}
+						val_s,val_t,(uint64_t)ans);}
  		state->hi = (uint32_t) ((ans >> 32) & 0xFFFFFFFF);
  		state->lo = (uint32_t) (ans & 0xFFFFFFFF);
  		break;
  	case 0x19: // MULTU
- 		u_ans = (uint64_t) state->regs[src1] * (uint64_t) state->regs[src2];
+ 		u_ans = (uint64_t) val_s * (uint64_t) val_t;
  		if(state->debugLevel){fprintf(state->debugDest,
  						"0x%08x * 0x%08x = 0x%lx\n",
- 						state->regs[src1],state->regs[src2],u_ans);}
+						val_s,val_t,u_ans);}
  		state->hi = (uint32_t) ((u_ans >> 32)) & 0xFFFFFFFF;
  		state->lo = (uint32_t) (u_ans & 0xFFFFFFFF);
  		break;
  	case 0x1a: //DIV
- 		hi = ((int32_t) src1) / ((int32_t) src2);
- 		lo = ((int32_t) src1) % ((int32_t) src2);
- 		state->lo = (uint32_t) hi;
- 		state->hi = (uint32_t) lo;
+ 		lo = ((int32_t) val_s) / ((int32_t) val_t);
+ 		hi = ((int32_t) val_s) % ((int32_t) val_t);
+ 		state->hi = (uint32_t) hi;
+ 		state->lo = (uint32_t) lo;
  		break;
  	case 0x1b: //DIVU
- 		state->lo = src1 / src2;
- 		state->hi = src1 % src2;
+ 		uint32_t div,mod;
+ 		div = val_s / val_t;
+ 		mod = val_s % val_t;
+ 		state->lo = val_s / val_t;
+ 		state->hi = val_s % val_t;
+ 		if(state->debugLevel){
+ 		fprintf(stderr,
+ 						"0x%x divide 0x%x = 0x%x\n0x%x modulo 0x%x = 0x%x\n",
+						val_s,val_t,div,val_s,val_t,mod);
+ 		}
  	}
  	return err;
  }

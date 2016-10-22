@@ -74,58 +74,8 @@ int compare_model(mips_cpu_h cpu, model_state model, result_set &results);
 
 int mips_test_check_err(mips_error err, result_set &results);
 
-/*!
- *
- * @param spec
- * @param mem
- * @param cpu
- */
-void run_spec(const std::vector<std::vector<std::string>> &spec, mips_mem_h mem, mips_cpu_h cpu);
-
-/*!
- * Separating tests by instructions is a bad idea because there are lots of different test types
- * which are common to different instruction types. e.g. the ways you test a branch instruction
- * are similar to how you test a jump instruction, and the ways you test normal add, addi instructions
- * are very similar.
- * 17 instructions implemented in .csv files and working in test_r_type, will be replaced by test_normal_ etc.
- * @param row
- * @param results
- * @param mem
- * @param cpu
- */
-void test_r_type(const std::vector<std::string> &row,result_set &results, mips_mem_h mem, mips_cpu_h cpu);
-
-/*!
- * Not implemented yet, will be replaced by test_normal_ etc.
- * @param row
- * @param results
- * @param mem
- * @param cpu
- */
-void test_rt_type(const std::vector<std::string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu);
-
-/*!
- * Not implemented yet, will be replaced by test_normal_ etc.
- * @param row
- * @param results
- * @param mem
- * @param cpu
- */
-void test_j_type(const std::vector<std::string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu);
-
-/*!
- * Not implemented yet, will be replaced by test_normal_ etc.
- * @param row
- * @param results
- * @param mem
- * @param cpu
- */
-void test_i_type(const std::vector<std::string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu);
-
-bool not_digit(std::string line);
-
 //! All below not implemented fully yet.
-void run_spec2(const std::vector<std::vector<std::string>> &spec, mips_mem_h mem, mips_cpu_h cpu);
+void run_spec(const std::vector<std::vector<std::string>> &spec, mips_mem_h mem, mips_cpu_h cpu);
 
 /*!
  * \todo Not implemented yet.
@@ -143,8 +93,8 @@ void test_memory_write_functions(const std::vector<std::string> &row, result_set
 void test_memory_read_functions(const std::vector<std::string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu);
 
 //! Could include in one umbrella function
-void test_mtmf_fucntions(const std::vector<std::string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu);
-void test_multdiv_functions(const std::vector<std::string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu);
+void test_mtmf_functions(const std::vector<std::string> &row, result_set &results, int testId, mips_mem_h mem, mips_cpu_h cpu);
+void test_multdiv_functions(const std::vector<std::string> &row, result_set &results, int testId, mips_mem_h mem, mips_cpu_h cpu);
 
 
 #endif /* SRC_GSP14_TEST_MIPS_H_ */
