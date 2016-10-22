@@ -48,9 +48,10 @@ int main(int argc, char *argv[])
     	++steps;
         uint32_t pc;
         mips_cpu_get_pc(c, &pc);
-        if(pc==sentinelPC)
+        if(pc==sentinelPC){
         	fprintf(stderr, "Step %d.\n", steps);
             break;
+        }
     }
 
     uint32_t fib_n;
