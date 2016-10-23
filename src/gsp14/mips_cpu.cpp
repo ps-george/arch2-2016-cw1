@@ -151,6 +151,7 @@ mips_error mips_cpu_set_pc(mips_cpu_h state,//!< Valid (non-empty) handle to a C
 	mips_error err = mips_Success;
 	if (pc % 4 == 0) {
 		state->pc = pc;
+		state->nPC = pc+4;
 	} else {
 		err = mips_ExceptionInvalidAlignment;
 	}
@@ -201,6 +202,9 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 	*/
 
 	err = mips_mem_read(state->mem, state->pc, 4, (uint8_t*) &val_b);
+	if (err){
+		return err;
+	}
 	// Convert from big-endian to little-endian
 	val_l = __builtin_bswap32(val_b);
 
@@ -381,10 +385,7 @@ mips_error cpu_execute_rt(const uint32_t &src, const uint32_t &fn_code,
 	mips_error err = mips_Success;
 	const uint32_t * src_v = &((state->regs[src]));
 	uint32_t * pc = &(state->pc);
-	//!\todo offset is sign extended
-	// Sign-extend the offset
-	int32_t offset = i;
-	//!\todo If branch is not taken, delay slot is not executed.
+	int32_t offset = (int16_t)i;
 	switch (fn_code) {
 	case 0x0:	// BLTZ
 		if ((int32_t) *src_v < 0) {
@@ -442,9 +443,11 @@ mips_error cpu_execute_i(const uint32_t &s, const uint32_t &t, const uint16_t &i
 	mips_error err = mips_Success;
 	uint32_t val_s = state->regs[s];
 	uint32_t * val_t = &(state->regs[t]);
-	uint32_t * pc = &(state->pc);
+	uint32_t pc = state->pc;
 	int32_t sval_s = state->regs[s];
-	int32_t simm = (int16_t)i;
+	int32_t simm = 0;
+	int32_t target = 0;
+	simm = (int16_t)i;
 	if(state->debugLevel){fprintf(state->debugDest,
 					"Simm = 0x%x\n",
 					i);}
@@ -452,32 +455,42 @@ mips_error cpu_execute_i(const uint32_t &s, const uint32_t &t, const uint16_t &i
 	if (opcode > 0xf) {
 		err = cpu_memory_funcs(opcode, s, t, i, state);
 	}
+	if (0x3<opcode&&opcode<0x8){
+		target = (simm << 2) + (pc+4);
+		//fprintf(stdout,"Target: %d, Simm: %d, Simm<<2: %d\n",target, simm, simm<<2);
+		//! If target < 0 as a result of simm being less than zero, invalid address
+		if (target < 0 && simm<0){
+			//fprintf(stdout,"Target is less than 0. Returning ExceptionInvalidAddress.\n");
+			return mips_ExceptionInvalidAddress;
+		}
+	}
 	switch (opcode) {
 	case 0x4: // BEQ (sign extend)
 		if ((val_s) == (*val_t)) {
-			err = mips_cpu_jump((simm << 2) + (*pc+4), 0, state);
+			err = mips_cpu_jump(target, 0, state);
 			return err;
 		}
 		break;
 	case 0x5: // BNE (sign extend)
 		if ((val_s) != (*val_t)) {
-			err = mips_cpu_jump((simm << 2) + (*pc+4), 0, state);
+			err = mips_cpu_jump(target, 0, state);
 			return err;
 		}
 		break;
 	case 0x6: //BLEZ (sign extend)
 		if (sval_s <= 0x0) {
-			err = mips_cpu_jump((simm << 2) + (*pc+4), 0, state);
+			err = mips_cpu_jump(target, 0, state);
 			return err;
 		}
 		break;
 	case 0x7: // BGTZ (sign extend)
 		if (sval_s > 0x0) {
-			err = mips_cpu_jump((simm << 2) + (*pc+4), 0, state);
+			err = mips_cpu_jump(target, 0, state);
 			return err;
 		}
 		break;
 	case 0x8: // ADDI (sign extend)
+		//! \todo overflow check and flag
 		//if (overflow(sval_s+i)){
 		//	return mips_ExceptionArithmeticOverflow;)
 		//}
@@ -637,7 +650,7 @@ mips_error cpu_execute_r(uint32_t src1, uint32_t src2, uint32_t dest,
 		err = mips_cpu_jump(state->regs[src1], src2, state);
 	} else if ((0xf < fn_code) && (fn_code < 0x14)) {
 		// MFHI, MTHI, MFLO, MTLO
-		if (shift_amt||src2){return mips_ExceptionInvalidInstruction;}
+		if (shift_amt || src2){return mips_ExceptionInvalidInstruction;}
 		err = move_hilo(fn_code, src1, dest, state);
 	}
 
@@ -752,12 +765,13 @@ void print_shift_debug(
 mips_error move_hilo(const uint32_t &fn_code, const uint32_t &src1,const uint32_t &dest,
 		mips_cpu_h &state) {
 	mips_error err = mips_Success;
-	if (dest==0){
-		return err;
-	}
+
 	switch (fn_code) {
 	case 0x10: // MFHI
 		if (src1){return mips_ExceptionInvalidInstruction;}
+		if (dest==0){
+			return err;
+		}
 		state->regs[dest] = state->hi;
 		break;
 	case 0x11: // MTHI
@@ -769,11 +783,14 @@ mips_error move_hilo(const uint32_t &fn_code, const uint32_t &src1,const uint32_
 		if(state->debugLevel){fprintf(state->debugDest,
 						"Moving 0x%08x from lo to reg %d\n",
 						state->lo, dest);}
+		if (dest==0){
+			return err;
+		}
 		state->regs[dest] = state->lo;
 		break;
 	case 0x13: // MTLO
 		if (dest){return mips_ExceptionInvalidInstruction;}
-		state->regs[src1] = state->lo;
+		state->lo = state->regs[src1];
 		break;
 	}
 	return err;

@@ -159,7 +159,9 @@ int main(int argc, char* argv[])
         }
 
 	// Create memory
-	mips_mem_h mem = mips_mem_create_ram(4096);
+    uint32_t mem_size = 2000;
+	mips_mem_h mem = mips_mem_create_ram(mem_size);
+	cout << "Memory size: " << mem_size << endl;
 
 	// Create cpu
 	mips_cpu_h cpu = mips_cpu_create(mem);
@@ -256,29 +258,29 @@ int set_debug_level(int argc, char* argv[],mips_cpu_h cpu){
 uint32_t test_construct_bitstream(string func, const uint32_t type, const vector<uint32_t> &params){
 	uint32_t bitstream=0x0;
 	uint32_t s,t,d,h,i,j;
-	//cout << func << endl;
+	//! 31:26, 25:21,
 	switch(type){
 	case instr_R_type: // R-type
-		s = params[0];
-		t = params[1];
-		d = params[2];
-		h = params[3];
+		s = params[0]&0x1F;
+		t = params[1]&0x1F;
+		d = params[2]&0x1F;
+		h = params[3]&0x1F;
 		bitstream = 0x0 |  (s << 21) | (t << 16) | (d << 11) | (h<<6) | r_to_op.at(func);
 		break;
 	case instr_RT_type: // RT-type
 		s = params[0];
 		i = params[1];
-		bitstream = 0x04000000 | (s << 21) | (rt_to_op.at(func) << 16)| i;
+		bitstream = 0x04000000 | (s << 21) | (rt_to_op.at(func) << 16)| (i&0xFFFF);
 		break;
 	case instr_J_type: // J type
 		j = params[0];
-		bitstream = ij_to_op.at(func)<<26|j;
+		bitstream = ij_to_op.at(func)<<26|(j&0x03FFFFFF);
 		break;
 	case instr_I_type: //I-type
 		s = params[0];
 		t = params[1];
 		i = params[2];
-		bitstream = ij_to_op.at(func)<<26|(s<<21)|(t<<16)|i;
+		bitstream = ij_to_op.at(func)<<26|(s<<21)|(t<<16)|(i&0xFFFF);
 		break;
 	}
 	bitstream = __builtin_bswap32(bitstream);
@@ -338,7 +340,9 @@ void run_spec(const vector<vector<string>> &spec, mips_mem_h mem, mips_cpu_h cpu
 		if ((spec[i][0]=="Rnorm") ||
 			(spec[i][0]=="Rmdiv") ||
 			(spec[i][0]=="Rbranch") ||
-			(spec[i][0]=="Rmtmf")
+			(spec[i][0]=="Rmtmf") ||
+			(spec[i][0]=="Jbranch") ||
+			(spec[i][0]=="Ibranch")
 					){
 			// Ignore header rows
 			// cout << "Ignore " << spec[i][0] << " header row." << endl;
@@ -470,7 +474,8 @@ void test_normal_functions(const vector<string> &row, result_set &results, mips_
 void test_branch_functions(const vector<string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu){
 	// Initialise variables
 	//! dest is the location to write the link location to, normally 31
-	uint32_t s,t,dest,d,h,t_val,s_val,target,loc,link,exp_err,branch;
+	uint32_t s,t,dest,d,h,j,t_val,s_val,target,loc,link,exp_err3,exp_err1,branch;
+	exp_err3 = 0; exp_err1 = 0;dest=0;link=0;loc=0;branch=1;
 	int32_t i;
 	mips_error err = mips_Success;
 	uint32_t instruction_bits;
@@ -490,8 +495,7 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 		h = s_to_ui(row[6]);
 		target = s_to_ui(row[7]); // s_val
 		link = s_to_ui(row[8]);
-		exp_err = s_to_ui(row[9]);
-		loc = 0;
+		exp_err1 = s_to_ui(row[9]);
 		branch = 1; // For R type, we only jump forwards, so write to 0 location
 		// Create r-type bitstream (d,h are usually 0, included to test corner case)
 		params = {s,dest,d,h};
@@ -509,15 +513,13 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 		// t_val = s_to_ui(row[7]);
 		loc = s_to_ui(row[8]);
 		branch = s_to_ui(row[9]);
-		target = (int32_t)loc + (i<<2);
+		target = (int32_t)(loc+4) + (i<<2);
 		params = {s,s_to_ui(row[4])};
 		instruction_bits = test_construct_bitstream(func, instr_RT_type, params);
 		err = mips_cpu_set_register(cpu,s,s_val);
 		// err = mips_cpu_set_register(cpu,t,t_val);
 		break;
 	case instr_I_type:
-		// This would be I-type functions, can't link
-		dest=0;link=0;
 		// branch depends on s and t and s_val and t_val
 		s = s_to_ui(row[3]);
 		t = s_to_ui(row[4]);
@@ -526,34 +528,31 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 		t_val = s_to_ui(row[7]);
 		loc = s_to_ui(row[8]);
 		branch = s_to_ui(row[9]);
-		target = (int32_t)loc + (i<<2);
+		exp_err1 = s_to_ui(row[10]);
+		target = (int32_t)(loc+4) + (i<<2);
+		//cout << "Target: 0x" << hex <<target <<dec<< endl;
 		// create I type bitstream
 		params = {s,t,s_to_ui(row[5])};
 		instruction_bits = test_construct_bitstream(func, instr_I_type, params);
+		//cout << "Instruction bits: 0x" << hex << instruction_bits << dec << endl;
 		// Set s_val and t_val
 		err = mips_cpu_set_register(cpu,s,s_val);
 		err = mips_cpu_set_register(cpu,t,t_val);
 		break;
 	case instr_J_type:
 		dest = 31;
-		target = s_to_ui(row[3]) << 2;
+		j = s_to_ui(row[3]);
+		target = j << 2;
+		//cout << "Jumping to address: 0x" << hex << target << dec << endl;
 		link = s_to_ui(row[4]);
+		exp_err3 = s_to_ui(row[5]);
 		// create j-type bitstream
-		params = {target};
+		params = {j};
 		instruction_bits = test_construct_bitstream(func, instr_J_type, params);
 		break;
 	default:
 		cout << "Strange instruction type code ended up in branch handler, shouldn't be here." << endl;
 		results.passed = 0;
-		return;
-	}
-
-	if (exp_err){
-		err = mips_cpu_step(cpu);
-		if (err!=exp_err){
-			results.passed = 0;
-			cout << hex << "Incorrect error message " << err << " was expecting " << exp_err << endl;
-		}
 		return;
 	}
 	if (link){
@@ -562,7 +561,16 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 	}
 	// Write jump/branch instruction to loc
 	err = mips_mem_write(mem, loc, 4, (uint8_t*)&instruction_bits);
-
+	err = mips_cpu_set_pc(cpu,loc);
+	// If expecting error in the first step
+	if (exp_err1){
+		err = mips_cpu_step(cpu);
+		if (err!=exp_err1){
+			results.passed = 0;
+			cout << hex << "Incorrect error message " << err << " was expecting " << exp_err1 << endl;
+		}
+		return;
+	}
 	//! Create delay slot instruction.
 	uint32_t d_reg,d_ans;
 	d_ans = 5;
@@ -572,20 +580,19 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 	err = mips_cpu_set_register(cpu,5,2);
 	params = {4,5,d_reg,0};
 	instruction_bits = test_construct_bitstream("ADDU",instr_R_type,params);
+	// After the first step, nothing will have changed except the PC must be +4 and reg[dest]==link address]
+	model_state model(cpu,dest,link,loc+4);
 	// Write add instruction to delay slot location
 	err = mips_mem_write(mem, loc+4, 4, (uint8_t*)&instruction_bits);
 	err = mips_cpu_step(cpu);
-	// After the first step, nothing will have changed except the PC must be +4 and reg[dest==link address]
-	// cout << "Dest: " << dest << " link:" << link << endl;
-	model_state model(cpu,dest,link,loc+4);
 	// If the cpu state doesn't match the model, return, no further testing.
 	if (compare_model(cpu,model,results)){
 		cout << "Failed at first step of branch instruction." << endl;
 		return;
 	}
-	err = mips_cpu_step(cpu);
 	// After the second step, the delay slot instruction must execute (always do a simple add for this)
 	model_state model2(cpu,d_reg,d_ans,loc+8);
+	err = mips_cpu_step(cpu);
 	// if not meant to branch, check that delay slot instruction executed, and that pc = loc + 8
 	if (!branch){
 		if (compare_model(cpu,model2,results)){
@@ -595,7 +602,7 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 		mips_cpu_step(cpu);
 		uint32_t tmp_pc;
 		err = mips_cpu_get_pc(cpu,&tmp_pc);
-		if (tmp_pc!=loc+8){
+		if (tmp_pc!=loc+12){
 			cout << "Failed at third step of non-branching instruction." << endl;
 			results.passed=0;
 		}
@@ -621,6 +628,15 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 	err = mips_mem_write(mem, target, 4, (uint8_t*)&instruction_bits);
 	model_state model3(cpu,j_reg,j_ans,target+4);
 	err = mips_cpu_step(cpu);
+	// If expecting error after the 3rd step
+	if (exp_err3){
+		err = mips_cpu_step(cpu);
+		if (err!=exp_err3){
+			results.passed = 0;
+			cout << hex << "Incorrect error message " << err << " was expecting " << exp_err3 << endl;
+		}
+		return;
+	}
 	if (compare_model(cpu,model3,results)){
 		cout << "Failed at third step of branch instruction." << endl;
 	}
@@ -633,9 +649,13 @@ void test_write_memory_functions(const vector<string> &row, result_set &results,
 	cout << "Got to memory write functions, not ready yet, fail test." << endl;
 	results.passed = 0;
 	return;
+
 	// Initialise variables
 
 
+	// Create bitstream for specified write to memory instruction
+
+	// Check memory location for value written to memory
 	return;
 }
 
@@ -660,8 +680,8 @@ void test_multdiv_functions(const vector<string> &row, result_set &results,int t
 	mips_error err = mips_Success;
 	uint32_t instruction_bits;
 	string func = row[2];
-
 	stringstream ss;
+
 	// Get variables from vector
 	s = s_to_ui(row[3]);
 	t = s_to_ui(row[4]);
@@ -673,9 +693,11 @@ void test_multdiv_functions(const vector<string> &row, result_set &results,int t
 	lo = s_to_ui(row[10]);
 	err_exp = s_to_ui(row[11]);
 	vector<uint32_t> params = {s,t,d,h};
+
 	// Set s and t values
 	err = mips_cpu_set_register(cpu,s,s_val);
 	err = mips_cpu_set_register(cpu,t,t_val);
+
 	// Create bitstream
 	instruction_bits = test_construct_bitstream(func,instr_R_type,params);
 
@@ -683,6 +705,7 @@ void test_multdiv_functions(const vector<string> &row, result_set &results,int t
 	err = mips_mem_write(mem,0,4,(uint8_t*)&instruction_bits);
 	model_state model(cpu,0,0,4);
 	err = mips_cpu_step(cpu);
+
 	// If expecting an error, check here.
 	if (err_exp){
 		if (err!=err_exp){
@@ -755,10 +778,10 @@ void test_multdiv_functions(const vector<string> &row, result_set &results,int t
 	return;
 }
 
-//! These functions require are difficult to test
+//! These functions are difficult to test
 void test_mtmf_functions(const vector<string> &row, result_set &results, int testId, mips_mem_h mem, mips_cpu_h cpu){
 	// Initialise variables
-	uint32_t s,t,d,h, s_val,ans, err_exp, d2_reg; //! MT takes from s_val, MF write to d
+	uint32_t s,t,d,h,ans, err_exp, d2_reg; //! MT takes from s_val, MF write to d
 	mips_error err = mips_Success;
 	uint32_t instruction_bits;
 	string func = row[2];
@@ -766,12 +789,11 @@ void test_mtmf_functions(const vector<string> &row, result_set &results, int tes
 	t = s_to_ui(row[4]);
 	d = s_to_ui(row[5]);
 	h = s_to_ui(row[6]);
-	s_val = s_to_ui(row[7]);
-	ans = s_to_ui(row[8]);
-	err_exp = s_to_ui(row[9]);
+	ans = s_to_ui(row[7]);
+	err_exp = s_to_ui(row[8]);
 
 	// Set s reg to s_val
-	err = mips_cpu_set_register(cpu,s,s_val);
+	err = mips_cpu_set_register(cpu,s,ans);
 
 	vector<uint32_t> params = {s,t,d,h};
 	//construct bitstream
@@ -780,6 +802,7 @@ void test_mtmf_functions(const vector<string> &row, result_set &results, int tes
 	err = mips_mem_write(mem,0,4,(uint8_t*)&instruction_bits);
 	// Step the cpu once. PC should be 4, no registers should have changed.
 	model_state model(cpu,0,0,4);
+	//! Move the value from s_reg to hi/lo register.
 	err = mips_cpu_step(cpu);
 	if (err_exp){
 		if (err!=err_exp){
@@ -797,30 +820,39 @@ void test_mtmf_functions(const vector<string> &row, result_set &results, int tes
 	}
 	d2_reg = 16;
 	// Construct bitsream for MFLO/MFHI depending
-	params = {0,0,d2_reg,0};
+	vector<uint32_t> params2 = {0,0,d2_reg,0};
 	string func2;
 	if (func=="MTHI"){
 		func2 = "MFHI";
-		instruction_bits = test_construct_bitstream(func2, instr_R_type,params);
+		instruction_bits = test_construct_bitstream(func2, instr_R_type,params2);
 	}
 	else if (func=="MTLO"){
 		func2 = "MFLO";
-		instruction_bits = test_construct_bitstream(func2, instr_R_type,params);
+		instruction_bits = test_construct_bitstream(func2, instr_R_type,params2);
 	}
+	// Write instruction to memory
+	err = mips_mem_write(mem,4,4,(uint8_t*)&instruction_bits);
 	// Have stepped twice, pc should be 8. d2_reg should be equal to the correct answer. All other registers unchanged.
 	model_state model1(cpu,d2_reg,ans,8);
-
+	//! Move value from hi/lo register to d2_reg
 	err = mips_cpu_step(cpu);
-
 	if (compare_model(cpu,model1,results)){
 		stringstream ss;
 		cout << "Failed at second step." << endl;
 		results.passed = 0;
+
+		cout << "Test " << testId << ", " << func <<". Testing " << results.msg << ". Result:" << results.passed << endl;
+
 		mips_test_end_test(testId, results.passed, results.msg.c_str());
 		//! Failure could also have been caused by MFHI/MFLO
 		testId = mips_test_begin_test(func2.c_str());
-		ss << "Testing " << func << " and answer was incorrect. Failing this as well.";
-		mips_test_end_test(testId, 0,ss.str().c_str());
+		ss << func << " and answer was incorrect. Failing " << func2;
+		results.msg = ss.str();
+		results.passed = 0;
+		cout << "Test " << testId << ", " << func2 <<". Testing " << results.msg << ". Result:" << results.passed << endl;
+		mips_test_end_test(testId,results.passed,results.msg.c_str());
+		return;
 	}
+	mips_test_end_test(testId,results.passed,results.msg.c_str());
 	return;
 }
