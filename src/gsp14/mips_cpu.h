@@ -87,7 +87,7 @@ mips_error cpu_execute_i(const uint32_t &s,const uint32_t &t, const uint16_t &i,
  * @param state - CPU handler
  * @return
  */
-mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t,uint32_t i, mips_cpu_h state);
+mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t,int32_t si, mips_cpu_h state);
 /*!
  *
  * @param src1 - Bits 25:21

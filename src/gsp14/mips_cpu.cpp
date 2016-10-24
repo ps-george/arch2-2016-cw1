@@ -488,7 +488,7 @@ mips_error cpu_execute_i(const uint32_t &s, const uint32_t &t, const uint16_t &i
 					i);}
 	uint32_t imm = i;
 	if (opcode > 0xf) {
-		err = cpu_memory_funcs(opcode, s, t, i, state);
+		err = cpu_memory_funcs(opcode, s, t, simm, state);
 	}
 	if (0x3<opcode&&opcode<0x8){
 		target = (simm << 2) + (pc+4);
@@ -572,7 +572,7 @@ mips_error cpu_execute_i(const uint32_t &s, const uint32_t &t, const uint16_t &i
 /*
 * MIPS CPU Memory Functions
 */
-mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, uint32_t i,
+mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, int32_t si,
 		mips_cpu_h state) {
 	mips_error err = mips_Success;
 	uint32_t tmp32;
@@ -584,27 +584,30 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, uint32_t i,
 	//if ((val_s + i)%4!=0){
 	//	return mips_ExceptionInvalidAlignment;
 	//}
+	if (opcode < 0x27 && t==0){
+		return err;
+	}
 	switch (opcode) {
 	case 0x24: // LBU
-		err = mips_mem_read(state->mem, (val_s + i), 1, &tmp8);
+		err = mips_mem_read(state->mem, (val_s + si), 1, &tmp8);
 		tmp32 = (uint32_t)tmp8;
 		break;
 	case 0x20: // LB
-		err = mips_mem_read(state->mem, (val_s + i), 1, &tmp8);
+		err = mips_mem_read(state->mem, (val_s + si), 1, &tmp8);
 		tmp32 = (int32_t)((int8_t)tmp8);
 		break;
 	case 0x21: // LH
-		err = mips_mem_read(state->mem, (val_s + i), 2, (uint8_t*) &tmp16);
+		err = mips_mem_read(state->mem, (val_s + si), 2, (uint8_t*) &tmp16);
 		tmp16 = __builtin_bswap16(tmp16);
 		tmp32 = (int32_t)((int16_t)tmp16);
 		break;
 	case 0x25: // LHU
-		err = mips_mem_read(state->mem, (val_s + i), 2, (uint8_t*) &tmp16);
+		err = mips_mem_read(state->mem, (val_s + si), 2, (uint8_t*) &tmp16);
 		tmp16 = __builtin_bswap16(tmp16);
 		tmp32 = (uint32_t)tmp16;
 		break;
 	case 0x22: //LWL
-		err = mips_mem_read(state->mem, (val_s + i), 4, (uint8_t*) &tmp32);
+		err = mips_mem_read(state->mem, (val_s + si), 4, (uint8_t*) &tmp32);
 		if (state->debugLevel) {
 			fprintf(state->debugDest,
 					"LWL read from memory, number is 0x%08x.\n", tmp32);
@@ -617,7 +620,7 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, uint32_t i,
 		tmp32= *val_t | tmp32;
 		break;
 	case 0x26: // LWR
-		err = mips_mem_read(state->mem, (val_s + i), 4, (uint8_t*) &tmp32);
+		err = mips_mem_read(state->mem, (val_s + si), 4, (uint8_t*) &tmp32);
 		if (state->debugLevel) {
 			fprintf(state->debugDest,
 					"LWL read from memory, number is 0x%08x.\n", tmp32);
@@ -630,26 +633,28 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, uint32_t i,
 		tmp32= *val_t | tmp32;
 		break;
 	case 0x23: // LW
-		//! \todo lowest two bits of effective address must not be 0
-		err = mips_mem_read(state->mem, (val_s + i), 4, (uint8_t*) &tmp32);
+		if (((val_s + si) % 4) != 0){
+			return mips_ExceptionInvalidAlignment;
+		}
+		err = mips_mem_read(state->mem, (val_s + si), 4, (uint8_t*) &tmp32);
 		tmp32 = __builtin_bswap32(tmp32);
 		break;
 	case 0x28: // SB
 		tmp8 = (uint8_t)(*val_t & 0x000000FF);
-		err = mips_mem_write(state->mem, (val_s + i),1, &tmp8);
+		err = mips_mem_write(state->mem, (val_s + si),1, &tmp8);
 		break;
 	case 0x29: // SH
 		tmp16 = (uint16_t)(*val_t & 0x0000FFFF);
 		tmp16 = __builtin_bswap16(tmp16);
-		err = mips_mem_write(state->mem, (val_s + i),2, (uint8_t*)&tmp16);
+		err = mips_mem_write(state->mem, (val_s + si),2, (uint8_t*)&tmp16);
 		break;
 	case 0x2b: // SW
 		tmp32 = __builtin_bswap32(*val_t);
 		if (state->debugLevel) {
 			fprintf(state->debugDest,
-					"Trying to store to memory location 0x%x.\n", val_s+i);
+					"Trying to store to memory location 0x%x.\n", val_s+si);
 		}
-		err = mips_mem_write(state->mem, (val_s+i), 4, (uint8_t*)&tmp32);
+		err = mips_mem_write(state->mem, (val_s+si), 4, (uint8_t*)&tmp32);
 		break;
 	}
 	if (err != mips_Success) {
