@@ -672,24 +672,33 @@ void test_read_memory_functions(const vector<string> &row, result_set &results, 
 	// Do we have to check reading to different registers? Maybe, read to dest reg = 0.
 	// s is address, t is destination, i is offset (s + offset is effective address)
 	// Initialise variables
-	uint32_t s, t, i, b, ans, exp_err,instruction_bits, memloc, big_b;
+	uint32_t s, t, i, b, ans, exp_err,instruction_bits, memloc, big_b, s_val;
 	// Write 4 bytes to specific location in memory
 	string func = row[2];
 	// Assign variables
 	s = s_to_ui(row[3]);
 	t = s_to_ui(row[4]); // destination
 	i = s_to_ui(row[5]);
-	b = s_to_ui(row[6]);
-	memloc = s_to_ui(row[7]);
-	ans = s_to_ui(row[8]);
-	exp_err = s_to_ui(row[9]);
+	s_val = s_to_ui(row[6]);
+	b = s_to_ui(row[7]);
+	memloc = s_to_ui(row[8]);
+	ans = s_to_ui(row[9]);
+	exp_err = s_to_ui(row[10]);
 	vector<uint32_t> params = {s,t,i};
-	// Create read mem instruction at 0
+
+	// Set values of s register
+	mips_cpu_set_register(cpu,s,s_val);
+
+	// Write b to specific memory location memloc
 	big_b = __builtin_bswap32(b);
 	mips_mem_write(mem, memloc,4, (uint8_t*)&big_b);
+
+	// Create read mem instruction at 0
 	instruction_bits = test_construct_bitstream(func, instr_I_type,params);
+
 	// Create model
-	model_state model(cpu,0,4,4);
+	model_state model(cpu,t,ans,4);
+
 	// Write instruction to memory
 	mips_mem_write(mem, 0, 4, (uint8_t*)&instruction_bits);
 
@@ -703,6 +712,8 @@ void test_read_memory_functions(const vector<string> &row, result_set &results, 
 			return;
 		}
 	}
+	//
+
 	// Compare model to cpu state
 	if (compare_model(cpu,model,results)){
 		return;
