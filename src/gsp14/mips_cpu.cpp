@@ -149,7 +149,7 @@ mips_error mips_cpu_set_pc(mips_cpu_h state,//!< Valid (non-empty) handle to a C
 		uint32_t pc			//!< Address of the next instruction to exectute.
 		) {
 	mips_error err = mips_Success;
-	if (pc % 4 == 0) {
+	if (pc % 4 == 0 || pc == 0) {
 		state->pc = pc;
 		state->nPC = pc+4;
 	} else {
@@ -235,6 +235,8 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 
 	// If there is an error, return err.
 	if (op == "ni") {
+		/*fprintf(stdout, "Opcode: 0x%08x. Instruction: %s\n", opcode,
+						op.c_str());*/
 		return mips_ErrorNotImplemented;
 	}
 	// Pick whether R type, RT-type(opcode in t sub-type BLTZ etc), J-type or I-type instruction
@@ -269,6 +271,9 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 		}
 		err = cpu_execute_i(s, t, i, opcode, state);
 	} else {
+		/*fprintf(stdout, "Opcode: 0x%08x. Instruction: %s\n", opcode,
+								op.c_str());
+		*/
 		return mips_ExceptionInvalidInstruction;
 	}
 	if (err==mips_Success || state->delay_slot){
@@ -284,7 +289,6 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 	instruction occupying a branch delay slot, the instruction stream is continued by
 	re-executing the branch instruction."
 	*/
-
 	if (state->debugLevel) {
 			fprintf(state->debugDest, "Error message: 0x%x\n",err);
 		}
@@ -378,38 +382,51 @@ void mips_cpu_increment_pc(mips_cpu_h state){
  	state->jPC = target;
  	return err;
  }
+
+mips_error check_branch_negative(int32_t target, int32_t offset){
+	if (target < 0 && offset<0){
+		return mips_ExceptionInvalidAddress;
+	}
+	return mips_Success;
+}
 /*
  *Rt-Type functions!!
  */
 // src = s, fn_code = t, offset = i
+
 mips_error cpu_execute_rt(const uint32_t &src, const uint32_t &fn_code,
 		const uint16_t &i, mips_cpu_h state) {
 	mips_error err = mips_Success;
+	mips_error errB = mips_Success;
 	int32_t src_v = (int32_t)state->regs[src];
 	uint32_t pc = state->pc;
 	int32_t offset = (int16_t)i;
 	int32_t target = (offset << 2) + (pc+4);
-	if (target < 0 && offset<0){
-		if(state->debugLevel){fprintf(stdout,"Target is less than 0. Returning ExceptionInvalidAddress.\n");}
-		return mips_ExceptionInvalidAddress;
-	}
-
+	errB = check_branch_negative(target,offset);
 	switch (fn_code) {
 	case 0x0:	// BLTZ
 		if(state->debugLevel){fprintf(stdout,"If 0x%x is less than 0, branch to 0x%x.\n", src_v, target);}
 		if (src_v < 0) {
-
+			if (errB!=mips_Success){
+				return errB;
+			}
 			return mips_cpu_jump(target, 0, state);
 		}
 		break;
 	case 0x1: // BGEZ
 		if(state->debugLevel){fprintf(stdout,"If 0x%x is greater than or equal to 0, branch to 0x%x.\n", src_v, target);}
 		if (src_v >= 0) {
+			if (errB!=mips_Success){
+				return errB;
+			}
 			return mips_cpu_jump(target, 0, state);
 		}
 		break;
 	case 0x10: // BLTZAL
 		if (src_v < 0) {
+			if (errB!=mips_Success){
+				return errB;
+			}
 			return mips_cpu_jump(target, 31, state);
 		}
 		// Always set link register regardless of whether branched or not.
@@ -417,6 +434,9 @@ mips_error cpu_execute_rt(const uint32_t &src, const uint32_t &fn_code,
 		break;
 	case 0x11: // BGEZAL
 		if (src_v >= 0) {
+			if (errB!=mips_Success){
+				return errB;
+			}
 			return mips_cpu_jump(target, 31, state);
 		}
 		state->regs[31] = pc+8;
@@ -455,6 +475,7 @@ mips_error cpu_execute_j(const uint32_t &j, const uint32_t opcode,
 mips_error cpu_execute_i(const uint32_t &s, const uint32_t &t, const uint16_t &i,
 		const uint32_t &opcode, mips_cpu_h state) {
 	mips_error err = mips_Success;
+	mips_error errB = mips_Success;
 	uint32_t val_s = state->regs[s];
 	uint32_t * val_t = &(state->regs[t]);
 	uint32_t pc = state->pc;
@@ -471,12 +492,7 @@ mips_error cpu_execute_i(const uint32_t &s, const uint32_t &t, const uint16_t &i
 	}
 	if (0x3<opcode&&opcode<0x8){
 		target = (simm << 2) + (pc+4);
-		//fprintf(stdout,"Target: %d, Simm: %d, Simm<<2: %d\n",target, simm, simm<<2);
-		//! If target < 0 as a result of simm being less than zero, invalid address
-		if (target < 0 && simm<0){
-			//fprintf(stdout,"Target is less than 0. Returning ExceptionInvalidAddress.\n");
-			return mips_ExceptionInvalidAddress;
-		}
+		errB = check_branch_negative(target,simm);
 	}
 	//! if desination reg is 0, don't do any of the following functions and just return.
 	if (opcode>0x7 && t==0){
@@ -485,21 +501,33 @@ mips_error cpu_execute_i(const uint32_t &s, const uint32_t &t, const uint16_t &i
 	switch (opcode) {
 	case 0x4: // BEQ (sign extend)
 		if ((val_s) == (*val_t)) {
+			if (errB!=mips_Success){
+				return errB;
+			}
 			err = mips_cpu_jump(target, 0, state);
 		}
 		break;
 	case 0x5: // BNE (sign extend)
 		if ((val_s) != (*val_t)) {
+			if (errB!=mips_Success){
+				return errB;
+			}
 			err = mips_cpu_jump(target, 0, state);
 		}
 		break;
 	case 0x6: //BLEZ (sign extend)
 		if (sval_s <= 0x0) {
+			if (errB!=mips_Success){
+				return errB;
+			}
 			err = mips_cpu_jump(target, 0, state);
 		}
 		break;
 	case 0x7: // BGTZ (sign extend)
 		if (sval_s > 0x0) {
+			if (errB!=mips_Success){
+				return errB;
+			}
 			err = mips_cpu_jump(target, 0, state);
 		}
 		break;
