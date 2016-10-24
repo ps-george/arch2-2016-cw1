@@ -597,6 +597,9 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, int32_t si,
 		tmp32 = (int32_t)((int8_t)tmp8);
 		break;
 	case 0x21: // LH
+		if (((val_s + si) % 2) != 0){
+			return mips_ExceptionInvalidAlignment;
+		}
 		err = mips_mem_read(state->mem, (val_s + si), 2, (uint8_t*) &tmp16);
 		tmp16 = __builtin_bswap16(tmp16);
 		tmp32 = (int32_t)((int16_t)tmp16);
