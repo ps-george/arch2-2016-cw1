@@ -630,6 +630,7 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, uint32_t i,
 		tmp32= *val_t | tmp32;
 		break;
 	case 0x23: // LW
+		//! \todo lowest two bits of effective address must not be 0
 		err = mips_mem_read(state->mem, (val_s + i), 4, (uint8_t*) &tmp32);
 		tmp32 = __builtin_bswap32(tmp32);
 		break;

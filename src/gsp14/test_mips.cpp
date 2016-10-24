@@ -668,10 +668,47 @@ void test_write_memory_functions(const vector<string> &row, result_set &results,
 //! These are quite simple to test. Write specified value to memory location using mips_mem_write
 //! Then check the memory for correct value using cpu function. Again, all I-type functions
 void test_read_memory_functions(const vector<string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu){
-	cout << "Got to memory read functions, not ready yet, fail test." << endl;
-	results.passed = 0;
-	return;
+	mips_error err = mips_Success;
+	// Do we have to check reading to different registers? Maybe, read to dest reg = 0.
+	// s is address, t is destination, i is offset (s + offset is effective address)
 	// Initialise variables
+	uint32_t s, t, i, b, ans, exp_err,instruction_bits, memloc, big_b;
+	// Write 4 bytes to specific location in memory
+	string func = row[2];
+	// Assign variables
+	s = s_to_ui(row[3]);
+	t = s_to_ui(row[4]); // destination
+	i = s_to_ui(row[5]);
+	b = s_to_ui(row[6]);
+	memloc = s_to_ui(row[7]);
+	ans = s_to_ui(row[8]);
+	exp_err = s_to_ui(row[9]);
+	vector<uint32_t> params = {s,t,i};
+	// Create read mem instruction at 0
+	big_b = __builtin_bswap32(b);
+	mips_mem_write(mem, memloc,4, (uint8_t*)&big_b);
+	instruction_bits = test_construct_bitstream(func, instr_I_type,params);
+	// Create model
+	model_state model(cpu,0,4,4);
+	// Write instruction to memory
+	mips_mem_write(mem, 0, 4, (uint8_t*)&instruction_bits);
+
+	// Step pc
+	err = mips_cpu_step(cpu);
+	// If expecting error, check for error
+	if (exp_err||err){
+		if (err!=exp_err){
+			results.passed=0;
+			cout << hex << "Incorrect error message " << err << " was expecting " << exp_err << dec <<endl;
+			return;
+		}
+	}
+	// Compare model to cpu state
+	if (compare_model(cpu,model,results)){
+		return;
+	}
+
+
 }
 
 //! These are fairly complicated to test, since they require multiple steps through the CPU.
