@@ -159,7 +159,7 @@ int main(int argc, char* argv[])
         }
 
 	// Create memory
-    uint32_t mem_size = 2000;
+    uint32_t mem_size = 0x2000;
 	mips_mem_h mem = mips_mem_create_ram(mem_size);
 	cout << "Memory size: " << mem_size << endl;
 
@@ -345,7 +345,8 @@ void run_spec(const vector<vector<string>> &spec, mips_mem_h mem, mips_cpu_h cpu
 			(spec[i][0]=="Rtbranch") ||
 			(spec[i][0]=="Jbranch") ||
 			(spec[i][0]=="Ibranch") ||
-			(spec[i][0]=="Inorm")
+			(spec[i][0]=="Inorm") ||
+			(spec[i][0]=="Imemread")
 					){
 			// Ignore header rows
 			// cout << "Ignore " << spec[i][0] << " header row." << endl;
@@ -375,7 +376,7 @@ void run_spec(const vector<vector<string>> &spec, mips_mem_h mem, mips_cpu_h cpu
 			//test_memory_write_functions(spec[i],results,mem,cpu);
 			break;
 		case test_MemRead: //0x4
-			//test_memory_read_functions(spec[i],results,mem,cpu);
+			test_memory_read_functions(spec[i],results,mem,cpu);
 			break;
 		case test_MTMF: //0x5
 			test_mtmf_functions(spec[i],results,testId,mem,cpu);
@@ -651,7 +652,7 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 
 //! These are quite simple to test, need to write a specified value to a memory location using the cpu
 //! then check the memory for correct written value. These are all I-type instructions.
-void test_write_memory_functions(const vector<string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu){
+void test_memory_write_functions(const vector<string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu){
 	cout << "Got to memory write functions, not ready yet, fail test." << endl;
 	results.passed = 0;
 	return;
@@ -667,7 +668,7 @@ void test_write_memory_functions(const vector<string> &row, result_set &results,
 
 //! These are quite simple to test. Write specified value to memory location using mips_mem_write
 //! Then check the memory for correct value using cpu function. Again, all I-type functions
-void test_read_memory_functions(const vector<string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu){
+void test_memory_read_functions(const vector<string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu){
 	mips_error err = mips_Success;
 	// Do we have to check reading to different registers? Maybe, read to dest reg = 0.
 	// s is address, t is destination, i is offset (s + offset is effective address)
@@ -685,7 +686,6 @@ void test_read_memory_functions(const vector<string> &row, result_set &results, 
 	ans = s_to_ui(row[9]);
 	exp_err = s_to_ui(row[10]);
 	vector<uint32_t> params = {s,t,i};
-
 	// Set values of s register
 	mips_cpu_set_register(cpu,s,s_val);
 
@@ -709,17 +709,18 @@ void test_read_memory_functions(const vector<string> &row, result_set &results, 
 		if (err!=exp_err){
 			results.passed=0;
 			cout << hex << "Incorrect error message " << err << " was expecting " << exp_err << dec <<endl;
-			return;
 		}
+		return;
 	}
 	//
 
 	// Compare model to cpu state
-	if (compare_model(cpu,model,results)){
-		return;
+	if(compare_model(cpu,model,results)){
+		uint32_t tmp;
+		mips_cpu_get_register(cpu, t, &tmp);
+		cout << hex << "Expected: 0x" << ans << " Got: 0x" << tmp << dec << endl;
 	}
-
-
+	return;
 }
 
 //! These are fairly complicated to test, since they require multiple steps through the CPU.
