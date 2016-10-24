@@ -412,11 +412,14 @@ mips_error cpu_execute_rt(const uint32_t &src, const uint32_t &fn_code,
 		if (src_v < 0) {
 			return mips_cpu_jump(target, 31, state);
 		}
+		// Always set link register regardless of whether branched or not.
+		state->regs[31] = pc+8;
 		break;
 	case 0x11: // BGEZAL
 		if (src_v >= 0) {
 			return mips_cpu_jump(target, 31, state);
 		}
+		state->regs[31] = pc+8;
 		break;
 	default:
 		return mips_ErrorInvalidArgument;
