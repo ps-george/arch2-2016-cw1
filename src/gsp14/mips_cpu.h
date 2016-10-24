@@ -45,7 +45,7 @@ void cpu_decode_instr(const uint32_t &bytes,uint32_t &op,uint32_t &s,uint32_t &t
  */
 mips_error mips_cpu_jump(uint32_t target, uint32_t link, mips_cpu_h state);
 
-int overflow(uint32_t a, uint32_t b);
+int overflow(int32_t a, int32_t b);
 
 /*!
  *

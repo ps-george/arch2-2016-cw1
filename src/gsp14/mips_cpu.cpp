@@ -318,6 +318,15 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
  	return msg.str();
  }
 
+int overflow(int32_t a, int32_t b){
+ 	// if both a and b are positive and the answer is negative, there has been overflow
+ 	// if both a and b are negative and the answer is positive, there has been overflow
+	if ((a>0&&b>0&&(a+b<0))||(a<0&&b<0&&a+b>0)){
+		return 1;
+	}
+	return 0;
+}
+
 /*
 *	 MIPS CPU STEP(CPU) functions
 */
@@ -350,7 +359,7 @@ void mips_cpu_increment_pc(mips_cpu_h state){
  	d = (bytes & 0x0000f800) >> 11;
  	sh = (bytes & 0x000007c0) >> 6;
  	fn = (bytes & 0x0000003f);
- 	i = (uint16_t) (bytes & 0x0000FFFF);
+ 	i = (uint16_t)(bytes & 0x0000FFFF);
  	j = (bytes & 0x03FFFFFF);
  }
 
@@ -369,13 +378,6 @@ void mips_cpu_increment_pc(mips_cpu_h state){
  	state->jPC = target;
  	return err;
  }
-
- int overflow(uint32_t a, uint32_t b){
- 	if (((a > 0) && (b > INT_MAX - a))||((b > 0) && (a > INT_MAX -a))){
- 		return 1;
- 	}
- 	return 0;
- }
 /*
  *Rt-Type functions!!
  */
@@ -383,28 +385,37 @@ void mips_cpu_increment_pc(mips_cpu_h state){
 mips_error cpu_execute_rt(const uint32_t &src, const uint32_t &fn_code,
 		const uint16_t &i, mips_cpu_h state) {
 	mips_error err = mips_Success;
-	const uint32_t * src_v = &((state->regs[src]));
-	uint32_t * pc = &(state->pc);
+	int32_t src_v = (int32_t)state->regs[src];
+	uint32_t pc = state->pc;
 	int32_t offset = (int16_t)i;
+	int32_t target = (offset << 2) + (pc+4);
+	if (target < 0 && offset<0){
+		if(state->debugLevel){fprintf(stdout,"Target is less than 0. Returning ExceptionInvalidAddress.\n");}
+		return mips_ExceptionInvalidAddress;
+	}
+
 	switch (fn_code) {
 	case 0x0:	// BLTZ
-		if ((int32_t) *src_v < 0) {
-			return mips_cpu_jump((*pc+4) + (offset << 2), 0, state);
+		if(state->debugLevel){fprintf(stdout,"If 0x%x is less than 0, branch to 0x%x.\n", src_v, target);}
+		if (src_v < 0) {
+
+			return mips_cpu_jump(target, 0, state);
 		}
 		break;
 	case 0x1: // BGEZ
-		if ((int32_t) *src_v >= 0) {
-			return mips_cpu_jump((*pc+4) + (offset << 2), 0, state);
+		if(state->debugLevel){fprintf(stdout,"If 0x%x is greater than or equal to 0, branch to 0x%x.\n", src_v, target);}
+		if (src_v >= 0) {
+			return mips_cpu_jump(target, 0, state);
 		}
 		break;
 	case 0x10: // BLTZAL
-		if ((int32_t) *src_v < 0) {
-			return mips_cpu_jump((*pc+4) + (offset << 2), 31, state);
+		if (src_v < 0) {
+			return mips_cpu_jump(target, 31, state);
 		}
 		break;
 	case 0x11: // BGEZAL
-		if ((int32_t) *src_v >= 0) {
-			return mips_cpu_jump((*pc+4) + (offset << 2), 31, state);
+		if (src_v >= 0) {
+			return mips_cpu_jump(target, 31, state);
 		}
 		break;
 	default:
@@ -464,36 +475,35 @@ mips_error cpu_execute_i(const uint32_t &s, const uint32_t &t, const uint16_t &i
 			return mips_ExceptionInvalidAddress;
 		}
 	}
+	//! if desination reg is 0, don't do any of the following functions and just return.
+	if (opcode>0x7 && t==0){
+		return err;
+	}
 	switch (opcode) {
 	case 0x4: // BEQ (sign extend)
 		if ((val_s) == (*val_t)) {
 			err = mips_cpu_jump(target, 0, state);
-			return err;
 		}
 		break;
 	case 0x5: // BNE (sign extend)
 		if ((val_s) != (*val_t)) {
 			err = mips_cpu_jump(target, 0, state);
-			return err;
 		}
 		break;
 	case 0x6: //BLEZ (sign extend)
 		if (sval_s <= 0x0) {
 			err = mips_cpu_jump(target, 0, state);
-			return err;
 		}
 		break;
 	case 0x7: // BGTZ (sign extend)
 		if (sval_s > 0x0) {
 			err = mips_cpu_jump(target, 0, state);
-			return err;
 		}
 		break;
 	case 0x8: // ADDI (sign extend)
-		//! \todo overflow check and flag
-		//if (overflow(sval_s+i)){
-		//	return mips_ExceptionArithmeticOverflow;)
-		//}
+		if (overflow(sval_s,simm)){
+			return mips_ExceptionArithmeticOverflow;
+		}
 		*val_t = sval_s + simm;
 		break;
 	case 0x9: // ADDUI
@@ -514,21 +524,18 @@ mips_error cpu_execute_i(const uint32_t &s, const uint32_t &t, const uint16_t &i
 		}
 		break;
 	case 0xc: // ANDI (no sign extend)
-		*val_t = (val_s) & imm;
+		*val_t = val_s & imm;
 		break;
 	case 0xd: //ORI
-		*val_t = (val_s) | imm;
+		*val_t = val_s | imm;
 		break;
 	case 0xe: //XORI
-		*val_t = (val_s) ^ imm;
+		*val_t = val_s ^ imm;
 		break;
 	case 0xf: //LUI
-		*val_t = (imm << 16);
+		*val_t = imm << 16;
 		break;
 	}
-	if (err !=mips_Success){
-		return err;
-	};
 	return err;
 }
 /*
@@ -542,9 +549,10 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, uint32_t i,
 	uint8_t tmp8;
 	uint32_t val_s = state->regs[s];
 	uint32_t * val_t = &(state->regs[t]);
-	if ((val_s + i)%4!=0){
-		return mips_ExceptionInvalidAlignment;
-	}
+	// unaligned memory load and store
+	//if ((val_s + i)%4!=0){
+	//	return mips_ExceptionInvalidAlignment;
+	//}
 	switch (opcode) {
 	case 0x24: // LBU
 		err = mips_mem_read(state->mem, (val_s + i), 1, &tmp8);
@@ -867,7 +875,7 @@ mips_error add_sub_bitwise(uint32_t src1, uint32_t src2, uint32_t dest,
 	case 0x20: //ADD
 		if(state->debugLevel){fprintf(state->debugDest,
 						"src1_val = %x, src2_val = %x",(src1_val),(src2_val));}
-		if (overflow((src1_val),(src2_val))){ //! \todo this is wrong, when adding a negative number to a positive number, always excepts but shouldn't
+		if (overflow(src1_val,src2_val)){
 			err = mips_ExceptionArithmeticOverflow;
 			return err;
 		}
@@ -877,7 +885,7 @@ mips_error add_sub_bitwise(uint32_t src1, uint32_t src2, uint32_t dest,
 		*dest_reg = (src1_val) + (src2_val);
 		break;
 	case 0x22: //SUB - Will trap on overflow
-		if ((src1_val)<(src2_val)){
+		if (overflow(src1_val, -src2_val)){
 			err = mips_ExceptionArithmeticOverflow;
 			return err;
 		}
