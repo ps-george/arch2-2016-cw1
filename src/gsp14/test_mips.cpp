@@ -298,7 +298,7 @@ int compare_model(mips_cpu_h cpu, model_state model, result_set &results){
 			return 1;
 		}
 		if (model.regs[i]!=tmp) {
-			cout << "Reg " << i << " = " << tmp << ". Should be " << model.regs[i] << "." << endl;
+			cout << hex << "Reg " << i << " = 0x" << tmp << ". Should be 0x" << model.regs[i] << "." << dec <<endl;
 			results.passed=0;
 			return 1;
 		}
@@ -337,12 +337,15 @@ void run_spec(const vector<vector<string>> &spec, mips_mem_h mem, mips_cpu_h cpu
 	string func = spec[0][2];
 	int testId;
 	for (unsigned i=0;i<spec.size();i++){
-		if ((spec[i][0]=="Rnorm") ||
+		if ((spec[i][0]=="")||
+			(spec[i][0]=="Rnorm") ||
 			(spec[i][0]=="Rmdiv") ||
-			(spec[i][0]=="Rbranch") ||
 			(spec[i][0]=="Rmtmf") ||
+			(spec[i][0]=="Rbranch") ||
+			(spec[i][0]=="Rtbranch") ||
 			(spec[i][0]=="Jbranch") ||
-			(spec[i][0]=="Ibranch")
+			(spec[i][0]=="Ibranch") ||
+			(spec[i][0]=="Inorm")
 					){
 			// Ignore header rows
 			// cout << "Ignore " << spec[i][0] << " header row." << endl;
@@ -431,6 +434,8 @@ void test_normal_functions(const vector<string> &row, result_set &results, mips_
 		dest = s_to_ui(row[4]); // t is the destination
 		i = s_to_ui(row[5]);
 		s_val = s_to_ui(row[6]);
+		ans = s_to_ui(row[7]);
+		exp_err = s_to_ui(row[8]);
 		params = {s,dest,i};
 		instruction_bits = test_construct_bitstream(func, instr_I_type, params);
 		err = mips_cpu_set_register(cpu, dest, 11);
@@ -463,10 +468,8 @@ void test_normal_functions(const vector<string> &row, result_set &results, mips_
 	}
 	// Create model_state
 	// nPC is always +4 for these "normal" instructions, and we will always write the instruction to 0 in memory.
-
 	compare_model(cpu, model, results);
 	return;
-
 }
 
 //! These are the most complicated instructions to test, involving multiple steps and checking.
@@ -509,11 +512,12 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 		// t = s_to_i(row[4]);
 		i = s_to_i(row[5]); // sign extend i
 		s_val = s_to_ui(row[6]);
-		// t_val = s_to_ui(row[7]);
+		link = s_to_ui(row[7]);
 		loc = s_to_ui(row[8]);
 		branch = s_to_ui(row[9]);
+		exp_err1 = s_to_ui(row[10]);
 		target = (int32_t)(loc+4) + (i<<2);
-		params = {s,s_to_ui(row[4])};
+		params = {s,s_to_ui(row[5])};
 		instruction_bits = test_construct_bitstream(func, instr_RT_type, params);
 		err = mips_cpu_set_register(cpu,s,s_val);
 		// err = mips_cpu_set_register(cpu,t,t_val);
@@ -566,7 +570,7 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 		err = mips_cpu_step(cpu);
 		if (err!=exp_err1){
 			results.passed = 0;
-			cout << hex << "Incorrect error message " << err << " was expecting " << exp_err1 << endl;
+			cout << hex << "Incorrect error message " << err << " was expecting " << exp_err1 << dec << endl;
 		}
 		return;
 	}
@@ -632,7 +636,7 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 		err = mips_cpu_step(cpu);
 		if (err!=exp_err3){
 			results.passed = 0;
-			cout << hex << "Incorrect error message " << err << " was expecting " << exp_err3 << endl;
+			cout << hex << "Incorrect error message " << err << " was expecting " << exp_err3 << dec <<endl;
 		}
 		return;
 	}
