@@ -477,8 +477,8 @@ void test_normal_functions(const vector<string> &row, result_set &results, mips_
 void test_branch_functions(const vector<string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu){
 	// Initialise variables
 	//! dest is the location to write the link location to, normally 31
-	uint32_t s,t,dest,d,h,j,t_val,s_val,target,loc,link,exp_err3,exp_err1,branch;
-	exp_err3 = 0; exp_err1 = 0;dest=0;link=0;loc=0;branch=1;
+	uint32_t s,t,dest,d,h,j,t_val,s_val,target,loc,link,exp_err3,branch;
+	exp_err3 = 0;dest=0;link=0;loc=0;branch=1;
 	int32_t i;
 	mips_error err = mips_Success;
 	uint32_t instruction_bits;
@@ -498,7 +498,7 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 		h = s_to_ui(row[6]);
 		target = s_to_ui(row[7]); // s_val
 		link = s_to_ui(row[8]);
-		exp_err1 = s_to_ui(row[9]);
+		exp_err3 = s_to_ui(row[9]);
 		branch = 1; // For R type, we only jump forwards, so write to 0 location
 		// Create r-type bitstream (d,h are usually 0, included to test corner case)
 		params = {s,dest,d,h};
@@ -516,7 +516,7 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 		link = s_to_ui(row[7]);
 		loc = s_to_ui(row[8]);
 		branch = s_to_ui(row[9]);
-		exp_err1 = s_to_ui(row[10]);
+		exp_err3 = s_to_ui(row[10]);
 		target = (int32_t)(loc+4) + (i<<2);
 		params = {s,s_to_ui(row[5])};
 		instruction_bits = test_construct_bitstream(func, instr_RT_type, params);
@@ -532,7 +532,7 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 		t_val = s_to_ui(row[7]);
 		loc = s_to_ui(row[8]);
 		branch = s_to_ui(row[9]);
-		exp_err1 = s_to_ui(row[10]);
+		exp_err3 = s_to_ui(row[10]);
 		target = (int32_t)(loc+4) + (i<<2);
 		//cout << "Target: 0x" << hex <<target <<dec<< endl;
 		// create I type bitstream
@@ -568,7 +568,8 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 
 	err = mips_cpu_set_pc(cpu,loc);
 
-	// If expecting error in the first step
+	// If expecting error in the first step - no longer expecting errors in first step, errors normally occur when instruction is read from memory
+	/*
 	if (exp_err1){
 		err = mips_cpu_step(cpu);
 		if (err!=exp_err1){
@@ -577,6 +578,7 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 		}
 		return;
 	}
+	*/
 	//! Create delay slot instruction.
 	uint32_t d_reg,d_ans;
 	d_ans = 5;
