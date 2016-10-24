@@ -167,7 +167,7 @@ int main(int argc, char* argv[])
 	mips_cpu_h cpu = mips_cpu_create(mem);
 
 	// Get & Set debug level
-	int debugLevel = set_debug_level(argc,argv,cpu);
+	set_debug_level(argc,argv,cpu);
 	// Prepare for tests
 	mips_test_begin_suite();
 	// Test that all 32 registers exist and contain uint32_t
@@ -336,7 +336,7 @@ void run_spec(const vector<vector<string>> &spec, mips_mem_h mem, mips_cpu_h cpu
 	uint32_t type;
 	string func = spec[0][2];
 	int testId;
-	for (uint i=0;i<spec.size();i++){
+	for (unsigned i=0;i<spec.size();i++){
 		if ((spec[i][0]=="Rnorm") ||
 			(spec[i][0]=="Rmdiv") ||
 			(spec[i][0]=="Rbranch") ||
@@ -393,7 +393,6 @@ void run_spec(const vector<vector<string>> &spec, mips_mem_h mem, mips_cpu_h cpu
 	}
 }
 
-//! \todo finish this function, write .csv for testing normal functions
 //! These are the simplest instructions to test, just need to check dest reg for correct value or error code
 void test_normal_functions(const vector<string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu){
 	// Initialise
