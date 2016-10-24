@@ -270,7 +270,7 @@ uint32_t test_construct_bitstream(string func, const uint32_t type, const vector
 	case instr_RT_type: // RT-type
 		s = params[0];
 		i = params[1];
-		bitstream = 0x04000000 | (s << 21) | (rt_to_op.at(func) << 16)| (i&0xFFFF);
+		bitstream = 0x04000000 | (s << 21) | ((rt_to_op.at(func)&0xFFFF) << 16)| (i&0xFFFF);
 		break;
 	case instr_J_type: // J type
 		j = params[0];
@@ -564,7 +564,9 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 	}
 	// Write jump/branch instruction to loc
 	err = mips_mem_write(mem, loc, 4, (uint8_t*)&instruction_bits);
+
 	err = mips_cpu_set_pc(cpu,loc);
+
 	// If expecting error in the first step
 	if (exp_err1){
 		err = mips_cpu_step(cpu);
@@ -588,6 +590,7 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 	// Write add instruction to delay slot location
 	err = mips_mem_write(mem, loc+4, 4, (uint8_t*)&instruction_bits);
 	err = mips_cpu_step(cpu);
+	//cout << "Error code: 0x" << hex << err <<dec << endl;
 	// If the cpu state doesn't match the model, return, no further testing.
 	if (compare_model(cpu,model,results)){
 		cout << "Failed at first step of branch instruction." << endl;
