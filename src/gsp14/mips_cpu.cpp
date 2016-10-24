@@ -685,44 +685,44 @@ mips_error r_shift(uint32_t src1, uint32_t src2, uint32_t dest, uint32_t shift_a
 		return err;
 	}
 	uint32_t * dest_reg = &(state->regs[dest]);
-	uint32_t * src1_reg = &(state->regs[src1]);
-	uint32_t * src2_reg = &(state->regs[src2]);
+	uint32_t src1_val = state->regs[src1];
+	uint32_t src2_val = state->regs[src2];
 
 	switch (fn_code) {
 	case 0x0: // SLL - Shift left logical (shift src2 left by shift_amt and put into dest)
 		if(src1){return mips_ExceptionInvalidInstruction;}
-		*dest_reg = *src2_reg << shift_amt;
-		print_shift_debug(1, 0, 0, *src1_reg, src2, *src2_reg, dest, *dest_reg,
+		*dest_reg = src2_val << shift_amt;
+		print_shift_debug(1, 0, 0, src1_val, src2, src2_val, dest, *dest_reg,
 				shift_amt, state);
 		break;
 	case 0x2: // SRL - Shift right logical
 		if(src1){return mips_ExceptionInvalidInstruction;}
-		*dest_reg = *src2_reg >> shift_amt;
-		print_shift_debug(1, 1, 0, *src1_reg, src2, *src2_reg, dest, *dest_reg,
+		*dest_reg = src2_val >> shift_amt;
+		print_shift_debug(1, 1, 0, src1_val, src2, src2_val, dest, *dest_reg,
 				shift_amt, state);
 		break;
 	case 0x3: // SRA - Shift right arithmetic
 		if(src1){return mips_ExceptionInvalidInstruction;}
-		*dest_reg = ((int32_t) *src2_reg) >> shift_amt;
-		print_shift_debug(0, 1, 0, *src1_reg, src2, *src2_reg, dest, *dest_reg,
+		*dest_reg = ((int32_t) src2_val) >> shift_amt;
+		print_shift_debug(0, 1, 0, src1_val, src2, src2_val, dest, *dest_reg,
 				shift_amt, state);
 		break;
 	case 0x4: // SLLV - Shift left logical variable
 		if (shift_amt){return mips_ExceptionInvalidInstruction;}
-		*dest_reg = *src2_reg << *src1_reg;
-		print_shift_debug(1, 0, 1, *src1_reg, src2, *src2_reg, dest, *dest_reg,
+		*dest_reg = src2_val << src1_val;
+		print_shift_debug(1, 0, 1, src1_val, src2, src2_val, dest, *dest_reg,
 				shift_amt, state);
 		break;
 	case 0x6: // SRLV - Shift right logical variable
 		if (shift_amt){return mips_ExceptionInvalidInstruction;}
-		*dest_reg = *src2_reg >> *src1_reg;
-		print_shift_debug(1, 1, 1, *src1_reg, src2, *src2_reg, dest, *dest_reg,
+		*dest_reg = src2_val >> src1_val;
+		print_shift_debug(1, 1, 1, src1_val, src2, src2_val, dest, *dest_reg,
 				shift_amt, state);
 		break;
 	case 0x7: // SRAV - Shift right arithmetic variable
 		if (shift_amt){return mips_ExceptionInvalidInstruction;}
-		*dest_reg = ((int32_t) *src2_reg) >> *src1_reg;
-		print_shift_debug(0, 1, 1, *src1_reg, src2, *src2_reg, dest, *dest_reg,
+		*dest_reg = ((int32_t) src2_val) >> src1_val;
+		print_shift_debug(0, 1, 1, src1_val, src2, src2_val, dest, *dest_reg,
 				shift_amt, state);
 		break;
 	}
@@ -860,43 +860,43 @@ mips_error add_sub_bitwise(uint32_t src1, uint32_t src2, uint32_t dest,
 		return err;
 	}
 	uint32_t * dest_reg = &(state->regs[dest]);
-	const uint32_t * src1_reg = &(state->regs[src1]);
-	const uint32_t * src2_reg = &(state->regs[src2]);
+	uint32_t src1_val = state->regs[src1];
+	uint32_t src2_val = state->regs[src2];
 	//! ADD, ADDU (add should have overflow catch mips_ExceptionArithmeticOverflow)
 	switch (fn_code) {
 	case 0x20: //ADD
 		if(state->debugLevel){fprintf(state->debugDest,
-						"src1_val = %x, src2_val = %x",(*src1_reg),(*src2_reg));}
-		if (overflow((*src1_reg),(*src2_reg))){ //! \todo this is wrong, when adding a negative number to a positive number, always excepts but shouldn't
+						"src1_val = %x, src2_val = %x",(src1_val),(src2_val));}
+		if (overflow((src1_val),(src2_val))){ //! \todo this is wrong, when adding a negative number to a positive number, always excepts but shouldn't
 			err = mips_ExceptionArithmeticOverflow;
 			return err;
 		}
-		*dest_reg = (*src1_reg) + (*src2_reg);
+		*dest_reg = (src1_val) + (src2_val);
 		break;
 	case 0x21:		//ADDU
-		*dest_reg = (*src1_reg) + (*src2_reg);
+		*dest_reg = (src1_val) + (src2_val);
 		break;
 	case 0x22: //SUB - Will trap on overflow
-		if ((*src1_reg)<(*src2_reg)){
+		if ((src1_val)<(src2_val)){
 			err = mips_ExceptionArithmeticOverflow;
 			return err;
 		}
-		*dest_reg = (*src1_reg) - (*src2_reg);
+		*dest_reg = (src1_val) - (src2_val);
 		break;
 	case 0x23: //SUBU
-		*dest_reg = (*src1_reg) - (*src2_reg);
+		*dest_reg = (src1_val) - (src2_val);
 		break;
 	case 0x24: // AND
-		*dest_reg = (*src1_reg) & (*src2_reg);
+		*dest_reg = (src1_val) & (src2_val);
 		break;
 	case 0x25: // OR
-		*dest_reg = (*src1_reg) | (*src2_reg);
+		*dest_reg = (src1_val) | (src2_val);
 		break;
 	case 0x26: //XOR
-		*dest_reg = (*src1_reg) ^ (*src2_reg);
+		*dest_reg = (src1_val) ^ (src2_val);
 		break;
 	case 0x27: // NOR
-		*dest_reg = ~((*src1_reg) | (*src2_reg));
+		*dest_reg = ~((src1_val) | (src2_val));
 		break;
 	}
 	return err;
