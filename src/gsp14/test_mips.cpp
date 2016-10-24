@@ -718,7 +718,6 @@ void test_memory_read_functions(const vector<string> &row, result_set &results, 
 	if(compare_model(cpu,model,results)){
 		uint32_t tmp;
 		mips_cpu_get_register(cpu, t, &tmp);
-		cout << hex << "Expected: 0x" << ans << " Got: 0x" << tmp << dec << endl;
 	}
 	return;
 }
