@@ -867,7 +867,7 @@ mips_error add_sub_bitwise(uint32_t src1, uint32_t src2, uint32_t dest,
 	case 0x20: //ADD
 		if(state->debugLevel){fprintf(state->debugDest,
 						"src1_val = %x, src2_val = %x",(*src1_reg),(*src2_reg));}
-		if (overflow((*src1_reg),(*src2_reg))){
+		if (overflow((*src1_reg),(*src2_reg))){ //! \todo this is wrong, when adding a negative number to a positive number, always excepts but shouldn't
 			err = mips_ExceptionArithmeticOverflow;
 			return err;
 		}

@@ -78,7 +78,6 @@ int mips_test_check_err(mips_error err, result_set &results);
 void run_spec(const std::vector<std::vector<std::string>> &spec, mips_mem_h mem, mips_cpu_h cpu);
 
 /*!
- * \todo Not implemented yet.
  * @param row
  * @param results
  * @param mem
