@@ -183,8 +183,7 @@ mips_error mips_cpu_set_debug_level(mips_cpu_h state, unsigned level,
 }
 
 void mips_cpu_free(mips_cpu_h state) {
-	mips_cpu_reset(state);
-	mips_mem_free(state->mem);
+	delete state;
 }
 /*
 * MIPS_CPU_STEP
@@ -378,7 +377,7 @@ void mips_cpu_increment_pc(mips_cpu_h state){
  	if (state->debugLevel) {
  		fprintf(state->debugDest, "Jumping PC from %d to %d", state->jPC, target);
  	}
- 	state->delay_slot=1;
+ 	state->delay_slot=1; //! Need this in case we are jumping to 0.
  	state->jPC = target;
  	return err;
  }
@@ -397,12 +396,10 @@ mips_error check_branch_negative(int32_t target, int32_t offset){
 mips_error cpu_execute_rt(const uint32_t &src, const uint32_t &fn_code,
 		const uint16_t &i, mips_cpu_h state) {
 	mips_error err = mips_Success;
-	//mips_error errB = mips_Success;
 	int32_t src_v = (int32_t)state->regs[src];
 	uint32_t pc = state->pc;
 	int32_t offset = (int16_t)i;
 	int32_t target = (offset << 2) + (pc+4);
-	//errB = check_branch_negative(target,offset);
 	switch (fn_code) {
 	case 0x0:	// BLTZ
 		if(state->debugLevel){fprintf(stdout,"If 0x%x is less than 0, branch to 0x%x.\n", src_v, target);}
@@ -463,7 +460,6 @@ mips_error cpu_execute_j(const uint32_t &j, const uint32_t opcode,
 mips_error cpu_execute_i(const uint32_t &s, const uint32_t &t, const uint16_t &i,
 		const uint32_t &opcode, mips_cpu_h state) {
 	mips_error err = mips_Success;
-	mips_error errB = mips_Success;
 	uint32_t val_s = state->regs[s];
 	uint32_t * val_t = &(state->regs[t]);
 	uint32_t pc = state->pc;
@@ -480,7 +476,6 @@ mips_error cpu_execute_i(const uint32_t &s, const uint32_t &t, const uint16_t &i
 	}
 	if (0x3<opcode&&opcode<0x8){
 		target = (simm << 2) + (pc+4);
-		//errB = check_branch_negative(target,simm);
 	}
 	//! if desination reg is 0, don't do any of the following functions and just return.
 	if (opcode>0x7 && t==0){

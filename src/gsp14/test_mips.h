@@ -40,6 +40,8 @@ std::map<std::string, uint32_t> ij_to_op;
 uint32_t s_to_ui(std::string s){return (uint32_t)strtol(s.c_str(),NULL,0);}
 int32_t s_to_i(std::string s){return (int32_t)((int16_t)strtol(s.c_str(),NULL,0));}
 
+void internal_tests(mips_cpu_h cpu, int i);
+
 /*!
  * Parses the filename specified, and saves each parameter in a row into a string vector,
  * saving each entire row into an over-arching vector (2D array).

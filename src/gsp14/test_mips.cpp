@@ -118,8 +118,6 @@ model_state::model_state(){
 struct result_set{
 	int passed;
 	string msg;
-	uint32_t ans;
-	uint32_t ans2;
 	result_set();
 	result_set(int passed);
 	result_set(int passed, string msg_in);
@@ -128,14 +126,10 @@ struct result_set{
 result_set::result_set(int passed_in, string msg_in){
 	msg = msg_in;
 	passed = passed_in;
-	ans = 0;
-	ans2 = 0;
 }
 result_set::result_set(int passed_in){
 	msg = "";
 	passed = passed_in;
-	ans = 0;
-	ans2 = 0;
 }
 /*
 * END OF STRUCT DEFINITIONS
@@ -155,22 +149,31 @@ int main(int argc, char* argv[])
 
     // Reverse map of opcodes for easy creation of opcodes.
     for (auto const &i: op_to_str) {
-        	ij_to_op[i.second] = i.first;
-        }
+        ij_to_op[i.second] = i.first;
+    }
 
 	// Create memory
     uint32_t mem_size = 0x2000;
 	mips_mem_h mem = mips_mem_create_ram(mem_size);
 	cout << "Memory size: " << mem_size << endl;
+	// Prepare for tests
+	mips_test_begin_suite();
 
-	// Create cpu
+	// Create CPU
+	int testId = mips_test_begin_test("<internal>");
 	mips_cpu_h cpu = mips_cpu_create(mem);
+	result_set results(1,"Test that all 32 registers exist, are zeroed, contain uint32_ts and pc is 0 when cpu is created.");
+	model_state model(cpu, 0, 0, 0);
+	compare_model(cpu,model,results);
+	mips_test_end_test(testId, results.passed, results.msg.c_str());
 
 	// Get & Set debug level
 	set_debug_level(argc,argv,cpu);
-	// Prepare for tests
-	mips_test_begin_suite();
-	// Test that all 32 registers exist and contain uint32_t
+
+	// Internal tests
+	for (unsigned i = 0; i<4;i++){
+		internal_tests(cpu,i);
+	}
 
 	// Read test_spec into vector of strings
 	vector<vector<string> > spec1;
@@ -179,13 +182,60 @@ int main(int argc, char* argv[])
 
 	// Execute test spec
 	run_spec(spec1, mem,cpu);
+
+	// Test that free cpu works
+	mips_cpu_free(cpu);
+
 	mips_test_end_suite();
 	return 0;
 }
 /*
 * END OF MAIN
 */
-
+/*
+ * Test internal functions:
+ * mips_cpu_h mips_cpu_create(mips_mem_h mem), mips_error mips_cpu_reset(mips_cpu_h state), mips_error mips_cpu_get_register,
+ * mips_error mips_cpu_set_register, mips_error mips_cpu_set_pc, mips_error mips_cpu_get_pc, mips_error mips_cpu_step,
+ * void mips_cpu_free(mips_cpu_h state)
+ */
+void internal_tests(mips_cpu_h cpu, int i){
+	result_set results(1,"");
+	model_state model(cpu, 0, 0, 0);
+	int testId = mips_test_begin_test("<internal>");
+	//! All the tests depend on reset...
+	switch(i){
+	case 0:
+		results.msg = "Testing set and get register work.";
+		for (unsigned k = 0; k<32;k++){
+			mips_cpu_set_register(cpu,k,k+1);
+			model.regs[k] = k+1;
+			model.regs[0] = 0;
+		}
+		break;
+	case 1:
+		// Test that all 32 registers exist, are zeroed, contain uint32_t, pc is 0.
+		results.msg = "Testing reset zeroes registers and PC.";
+		mips_cpu_step(cpu);
+		mips_cpu_reset(cpu);
+		break;
+	case 2:
+		results.msg = "Testing set and get PC.";
+		mips_cpu_set_pc(cpu,16);
+		model.pc = 16;
+		break;
+	case 3:
+		results.msg = "Test step CPU steps offset 4.";
+		mips_cpu_step(cpu);
+		model.pc = 4;
+		break;
+	}
+	compare_model(cpu,model,results);
+	if (!results.passed){
+		cout << "Test " << testId << ", " << results.msg << " Failed." << endl;
+	}
+	mips_test_end_test(testId, results.passed, results.msg.c_str());
+	mips_cpu_reset(cpu);
+}
 /*
 * GENERAL HELPER FUNCTIONS
 */
@@ -492,7 +542,6 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 	switch(byte2){
 	case instr_R_type:
 		// This would be R-type functions
-		//! \todo Bottom two bits of s can't be 1 test
 		s = s_to_ui(row[3]); // s contains the value to jump to
 		dest = s_to_ui(row[4]); // t_reg - want to test == 0 corner case
 		d = s_to_ui(row[5]); // only used in error msg test
