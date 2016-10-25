@@ -528,7 +528,7 @@ void test_normal_functions(const vector<string> &row, result_set &results, mips_
 void test_branch_functions(const vector<string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu){
 	// Initialise variables
 	//! dest is the location to write the link location to, normally 31
-	uint32_t s,t,dest,d,h,j,t_val,s_val,target,loc,link,exp_err3,branch;
+	uint32_t s,t,dest,h,j,t_val,s_val,target,loc,link,exp_err3,branch;
 	exp_err3 = 0;dest=0;link=0;loc=0;branch=1;
 	int32_t i;
 	mips_error err = mips_Success;
@@ -543,15 +543,15 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 	case instr_R_type:
 		// This would be R-type functions
 		s = s_to_ui(row[3]); // s contains the value to jump to
-		dest = s_to_ui(row[4]); // t_reg - want to test == 0 corner case
-		d = s_to_ui(row[5]); // only used in error msg test
+		t = s_to_ui(row[4]); // only used in error msg test
+		dest = s_to_ui(row[5]); // d_reg - want to test == 0 corner case
 		h = s_to_ui(row[6]);
 		target = s_to_ui(row[7]); // s_val
 		link = s_to_ui(row[8]);
 		exp_err3 = s_to_ui(row[9]);
 		branch = 1; // For R type, we only jump forwards, so write to 0 location
 		// Create r-type bitstream (d,h are usually 0, included to test corner case)
-		params = {s,dest,d,h};
+		params = {s,t,dest,h};
 		instruction_bits = test_construct_bitstream(func,instr_R_type,params);
 		// Set s to value of target
 		err = mips_cpu_set_register(cpu, s, target);

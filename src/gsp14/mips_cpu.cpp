@@ -519,7 +519,7 @@ mips_error cpu_execute_i(const uint32_t &s, const uint32_t &t, const uint16_t &i
 		}
 		break;
 	case 0xb: //STLIU
-		if (val_s < imm) {
+		if (val_s < (uint32_t)simm) {
 			*val_t = 0x1;
 		} else {
 			*val_t = 0x0;
@@ -671,8 +671,8 @@ mips_error cpu_execute_r(uint32_t src1, uint32_t src2, uint32_t dest,
 		// JR
 		err = mips_cpu_jump(state->regs[src1], 0, state);
 	} else if (fn_code == 0x9) {
-		// JRAL
-		err = mips_cpu_jump(state->regs[src1], src2, state);
+		// jalr
+		err = mips_cpu_jump(state->regs[src1], dest, state);
 	} else if ((0xf < fn_code) && (fn_code < 0x14)) {
 		// MFHI, MTHI, MFLO, MTLO
 		if (shift_amt || src2){return mips_ExceptionInvalidInstruction;}
@@ -853,12 +853,18 @@ mips_error mult_div(uint32_t src1, uint32_t src2, uint32_t fn_code,
  		state->lo = (uint32_t) (u_ans & 0xFFFFFFFF);
  		break;
  	case 0x1a: //DIV
+ 		if (val_t==0){
+ 			return mips_Success;
+ 		}
  		lo = ((int32_t) val_s) / ((int32_t) val_t);
  		hi = ((int32_t) val_s) % ((int32_t) val_t);
  		state->hi = (uint32_t) hi;
  		state->lo = (uint32_t) lo;
  		break;
  	case 0x1b: //DIVU
+ 		if (val_t==0){
+ 			return mips_Success;
+ 		}
  		uint32_t div,mod;
  		div = val_s / val_t;
  		mod = val_s % val_t;
