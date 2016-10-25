@@ -586,26 +586,29 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, int32_t si,
 		tmp32 = (uint32_t)tmp16;
 		break;
 	case 0x22: //LWL
-		err = mips_mem_read(state->mem, (val_s + si), 4, (uint8_t*) &tmp32);
-		if (state->debugLevel) {
-			fprintf(state->debugDest,
-					"LWL read from memory, number is 0x%08x.\n", tmp32);
-		}
-		// Load the whole word into temp and swap the bits around
-		tmp32 = __builtin_bswap32(tmp32);
+		// Load the first byte
+		err = mips_mem_read(state->mem, (val_s + si), 1, &tmp8);
+		// Put the first byte into tmp32
+		tmp32 = (uint32_t)tmp8 << 24;
+
+		// Load the second byte
+		err = mips_mem_read(state->mem, (val_s + si + 1), 1, &tmp8);
+		// Put the second byte into tmp32
+		tmp32 = tmp32 | (uint32_t)tmp8 << 16;
 		// Remove the right half of the word
 		tmp32 = tmp32 & 0xFFFF0000;
 		*val_t = *val_t & 0x0000FFFF;
 		tmp32= *val_t | tmp32;
 		break;
 	case 0x26: // LWR
-		err = mips_mem_read(state->mem, (val_s + si), 4, (uint8_t*) &tmp32);
-		if (state->debugLevel) {
-			fprintf(state->debugDest,
-					"LWL read from memory, number is 0x%08x.\n", tmp32);
-		}
-		// Load the whole word into temp and swap the bits around
-		tmp32 = __builtin_bswap32(tmp32);
+		// Load the first byte
+		err = mips_mem_read(state->mem, (val_s + si + 2), 1, &tmp8);
+		// Put first byte into tmp32
+		tmp32 = (uint32_t)tmp8 << 8;
+		// Load the second byte
+		err = mips_mem_read(state->mem, (val_s + si + 3), 1, &tmp8);
+		// Put second byte into tmp32
+		tmp32 = tmp32 | (uint32_t)tmp8;
 		// Remove the left half of the word
 		tmp32 = tmp32 & 0x0000FFFF;
 		*val_t = *val_t & 0xFFFF0000;
