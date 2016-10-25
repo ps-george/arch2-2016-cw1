@@ -675,7 +675,7 @@ void test_memory_read_functions(const vector<string> &row, result_set &results, 
 	// Do we have to check reading to different registers? Maybe, read to dest reg = 0.
 	// s is address, t is destination, i is offset (s + offset is effective address)
 	// Initialise variables
-	uint32_t s, t, i, b, ans, exp_err,instruction_bits, memloc, big_b, s_val;
+	uint32_t s, t, i, b, ans, exp_err,instruction_bits, memloc, big_b, s_val,t_val;
 	// Write 4 bytes to specific location in memory
 	string func = row[2];
 	// Assign variables
@@ -683,19 +683,23 @@ void test_memory_read_functions(const vector<string> &row, result_set &results, 
 	t = s_to_ui(row[4]); // destination
 	i = s_to_ui(row[5]);
 	s_val = s_to_ui(row[6]);
-	b = s_to_ui(row[7]);
-	memloc = s_to_ui(row[8]);
-	ans = s_to_ui(row[9]);
-	exp_err = s_to_ui(row[10]);
+	t_val = s_to_ui(row[7]);
+	b = s_to_ui(row[8]);
+	memloc = s_to_ui(row[9]);
+	ans = s_to_ui(row[10]);
+	exp_err = s_to_ui(row[11]);
 	vector<uint32_t> params = {s,t,i};
 	// Set values of s register
 	mips_cpu_set_register(cpu,s,s_val);
-
-	// Write b to specific memory location memloc
+	mips_cpu_set_register(cpu,t,t_val);
+	// Write b to specific memory location memloc - do it byte by byte so can write unaligned
+	uint8_t tmp8;
+	uint32_t mask = 0xFF;
 	big_b = __builtin_bswap32(b);
-	mips_mem_write(mem, memloc,4, (uint8_t*)&big_b);
-
-	// Create read mem instruction at 0
+	for (unsigned k = 0; k<4; k++){
+		tmp8 = (uint8_t)((big_b&(mask<<k*8))>>k*8);
+		err = mips_mem_write(mem, memloc+k,1,&tmp8);
+	}
 	instruction_bits = test_construct_bitstream(func, instr_I_type,params);
 
 	// Create model
