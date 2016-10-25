@@ -346,7 +346,8 @@ void run_spec(const vector<vector<string>> &spec, mips_mem_h mem, mips_cpu_h cpu
 			(spec[i][0]=="Jbranch") ||
 			(spec[i][0]=="Ibranch") ||
 			(spec[i][0]=="Inorm") ||
-			(spec[i][0]=="Imemread")
+			(spec[i][0]=="Imemread") ||
+			(spec[i][0]=="Imemwrite")
 					){
 			// Ignore header rows
 			// cout << "Ignore " << spec[i][0] << " header row." << endl;
@@ -373,7 +374,7 @@ void run_spec(const vector<vector<string>> &spec, mips_mem_h mem, mips_cpu_h cpu
 			test_branch_functions(spec[i],results,mem,cpu);
 			break;
 		case test_MemWrite: //0x3
-			//test_memory_write_functions(spec[i],results,mem,cpu);
+			test_memory_write_functions(spec[i],results,mem,cpu);
 			break;
 		case test_MemRead: //0x4
 			test_memory_read_functions(spec[i],results,mem,cpu);
@@ -655,16 +656,55 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 //! These are quite simple to test, need to write a specified value to a memory location using the cpu
 //! then check the memory for correct written value. These are all I-type instructions.
 void test_memory_write_functions(const vector<string> &row, result_set &results, mips_mem_h mem, mips_cpu_h cpu){
-	cout << "Got to memory write functions, not ready yet, fail test." << endl;
-	results.passed = 0;
-	return;
-
+	mips_error err = mips_Success;
+	// s is address, t is value, i is offset (s + offset is effective address)
 	// Initialise variables
+	uint32_t s, t, i, b, ans, exp_err,instruction_bits, memloc, big_b, s_val,t_val;
+	// Write 4 bytes to specific location in memory
+	string func = row[2];
+	// Assign variables
+	s = s_to_ui(row[3]);
+	t = s_to_ui(row[4]); // destination
+	i = s_to_ui(row[5]);
+	s_val = s_to_ui(row[6]);
+	t_val = s_to_ui(row[7]); // bytes to write
+	memloc = s_to_ui(row[8]);
+	ans = s_to_ui(row[9]);
+	exp_err = s_to_ui(row[10]);
+	vector<uint32_t> params = {s,t,i};
+	// Set values of registers
+	mips_cpu_set_register(cpu,s,s_val);
+	mips_cpu_set_register(cpu,t,t_val);
+	uint32_t z = 0x0;
+	mips_mem_write(mem, memloc, 4, (uint8_t*)&z);
+	mips_mem_write(mem, memloc+3,4,(uint8_t*)&z);
+	// Write b to specific memory location memloc - do it byte by byte so can write unaligned
+	instruction_bits = test_construct_bitstream(func, instr_I_type,params);
 
+	// Write instruction to memory
+	mips_mem_write(mem, 0, 4, (uint8_t*)&instruction_bits);
+	// Create model state - nothing should have changed except pc
+	model_state model(cpu,0,0,4);
+	// Step pc
+	err = mips_cpu_step(cpu);
+	if (exp_err){
+		if (err!=exp_err){
+			results.passed = 0;
+		}
+		return;
+	}
+	if (compare_model(cpu,model,results)){
+		return;
+	}
+	// Read 4 bytes from aligned memory address
+	mips_mem_read(mem,memloc,4,(uint8_t*)&big_b);
+	b = __builtin_bswap32(big_b);
 
-	// Create bitstream for specified write to memory instruction
-
-	// Check memory location for value written to memory
+	// Check that it is the correct answer.
+	if (b!=ans){
+		results.passed=0;
+		cout << hex << "Read 0x" << b << " from memory. Was expecting 0x" << ans << dec << "." << endl;
+	}
 	return;
 }
 
