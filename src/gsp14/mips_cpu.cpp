@@ -555,7 +555,8 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, int32_t si,
 	uint16_t tmp16;
 	uint8_t tmp8;
 	uint32_t val_s = state->regs[s];
-	uint32_t * val_t = &(state->regs[t]);
+	uint32_t val_t = state->regs[t];
+	uint32_t * p_t = &(state->regs[t]);
 	// unaligned memory load and store
 	//if ((val_s + i)%4!=0){
 	//	return mips_ExceptionInvalidAlignment;
@@ -597,8 +598,8 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, int32_t si,
 		tmp32 = tmp32 | (uint32_t)tmp8 << 16;
 		// Remove the right half of the word
 		tmp32 = tmp32 & 0xFFFF0000;
-		*val_t = *val_t & 0x0000FFFF;
-		tmp32= *val_t | tmp32;
+		val_t = val_t & 0x0000FFFF;
+		tmp32= val_t | tmp32;
 		break;
 	case 0x26: // LWR
 		// Load the first byte
@@ -611,8 +612,8 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, int32_t si,
 		tmp32 = tmp32 | (uint32_t)tmp8;
 		// Remove the left half of the word
 		tmp32 = tmp32 & 0x0000FFFF;
-		*val_t = *val_t & 0xFFFF0000;
-		tmp32= *val_t | tmp32;
+		val_t = val_t & 0xFFFF0000;
+		tmp32= val_t | tmp32;
 		break;
 	case 0x23: // LW
 		if (((val_s + si) % 4) != 0){
@@ -622,16 +623,16 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, int32_t si,
 		tmp32 = __builtin_bswap32(tmp32);
 		break;
 	case 0x28: // SB
-		tmp8 = (uint8_t)(*val_t & 0x000000FF);
+		tmp8 = (uint8_t)(val_t & 0x000000FF);
 		err = mips_mem_write(state->mem, (val_s + si),1, &tmp8);
 		break;
 	case 0x29: // SH
-		tmp16 = (uint16_t)(*val_t & 0x0000FFFF);
+		tmp16 = (uint16_t)(val_t & 0x0000FFFF);
 		tmp16 = __builtin_bswap16(tmp16);
 		err = mips_mem_write(state->mem, (val_s + si),2, (uint8_t*)&tmp16);
 		break;
 	case 0x2b: // SW
-		tmp32 = __builtin_bswap32(*val_t);
+		tmp32 = __builtin_bswap32(val_t);
 		if (state->debugLevel) {
 			fprintf(state->debugDest,
 					"Trying to store to memory location 0x%x.\n", val_s+si);
@@ -646,7 +647,9 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, int32_t si,
 		}
 		return err;
 	}
-	*val_t = tmp32;
+	if (opcode<0x27){
+		*p_t = tmp32;
+	}
 	return err;
 }
 /*
