@@ -595,9 +595,10 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, int32_t si,
 		tmp32 = __builtin_bswap32(tmp32);
 		switch(lsbs){
 		case 0x0:
+			// I J K L, I is least significant
 			mask = 0xFFFFFFFF;
 			break;
-		case 0x1:
+		case 0x1: // J K L 0
 			mask = 0xFFFFFF00;
 			break;
 		case 0x2:
@@ -607,6 +608,7 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, int32_t si,
 			mask = 0xFF000000;
 			break;
 		}
+		tmp32 = (tmp32&~mask)<<(lsbs*8);
 		tmp32= (val_t & ~mask) | (tmp32 & mask);
 		break;
 	case 0x26: // LWR
@@ -618,20 +620,22 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, int32_t si,
 		err = mips_mem_read(state->mem, eff_adr, 4, (uint8_t*)&tmp32);
 		// Swap endianness
 		tmp32 = __builtin_bswap32(tmp32);
+		// L K J I
 		switch(lsbs){
-		case 0x0:
+		case 0x0: // I
 			mask = 0x000000FF;
 			break;
-		case 0x1:
+		case 0x1: // I J
 			mask = 0x0000FFFF;
 			break;
-		case 0x2:
+		case 0x2: // I J K
 			mask = 0x00FFFFFF;
 			break;
-		case 0x3:
+		case 0x3: // I J K L
 			mask = 0xFFFFFFFF;
 			break;
 		}
+		tmp32 = ( tmp32 & (mask << (24-lsbs*8) ) ) >> (24 - lsbs*8);
 		tmp32= (val_t & ~mask) | (tmp32 & mask);
 		break;
 	case 0x23: // LW
