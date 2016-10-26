@@ -134,21 +134,6 @@ result_set::result_set(int passed_in){
 /*
 * END OF STRUCT DEFINITIONS
 */
-int mips_test_begin_test_wrapper(string func){
-	cerr << "-----------------------------------" << endl;
-	int testId = mips_test_begin_test(func.c_str());
-	cerr << "Begin test: " << testId << " Function: " << func << endl;
-	return testId;
-}
-void mips_test_end_test_wrapper(int testId, int passed, string msg){
-	string pf = "Failed";
-	if (passed){
-		pf = "Passed";
-	}
-	cerr << "Result: " << pf << endl;
-	mips_test_end_test(testId, passed,msg.c_str());
-}
-
 /*
 * MAIN FUNCTION
 */
@@ -257,6 +242,22 @@ void internal_tests(mips_cpu_h cpu, int i){
 /*
 * GENERAL HELPER FUNCTIONS
 */
+// Wrappers to provide nicer test output formatting.
+int mips_test_begin_test_wrapper(string func){
+	cerr << "-----------------------------------" << endl;
+	int testId = mips_test_begin_test(func.c_str());
+	cerr << "Begin test: " << testId << " Function: " << func << endl;
+	return testId;
+}
+void mips_test_end_test_wrapper(int testId, int passed, string msg){
+	string pf = "Failed";
+	if (passed){
+		pf = "Passed";
+	}
+	cerr << "Result: " << pf << endl;
+	mips_test_end_test(testId, passed,msg.c_str());
+}
+// END OF WRAPPERS
 // Function which takes in a string naming the test file, tests all the cases in the file
 // PARSE TEST SPEC .CSV
 int parse_test_spec(string filename, vector<vector<string> > &spec){

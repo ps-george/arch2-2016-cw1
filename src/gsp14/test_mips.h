@@ -40,6 +40,10 @@ std::map<std::string, uint32_t> ij_to_op;
 uint32_t s_to_ui(std::string s){return (uint32_t)strtol(s.c_str(),NULL,0);}
 int32_t s_to_i(std::string s){return (int32_t)((int16_t)strtol(s.c_str(),NULL,0));}
 
+int mips_test_begin_test_wrapper(std::string func);
+
+void mips_test_end_test_wrapper(int testId, int passed, std::string msg);
+
 void internal_tests(mips_cpu_h cpu, int i);
 
 /*!
