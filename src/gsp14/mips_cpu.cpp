@@ -608,7 +608,7 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, int32_t si,
 			mask = 0xFF000000;
 			break;
 		}
-		tmp32 = (tmp32&~mask)<<(lsbs*8);
+		tmp32 = (tmp32&(mask>>(lsbs*8)))<<(lsbs*8);
 		tmp32= (val_t & ~mask) | (tmp32 & mask);
 		break;
 	case 0x26: // LWR
