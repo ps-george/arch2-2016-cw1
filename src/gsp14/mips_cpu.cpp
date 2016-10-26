@@ -11,10 +11,10 @@
 #include <sstream>
 #include <assert.h>
 #include <byteswap.h>
-#include "mips_cpu.h"
 #include <map>
 #include <functional>
 #include <limits.h>
+#include "cpu_mips.h"
 
 using namespace std;
 

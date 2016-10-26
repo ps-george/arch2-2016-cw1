@@ -5,8 +5,8 @@
  *      Author: big-g
  */
 
-#ifndef SRC_GSP14_MIPS_CPU_H_
-#define SRC_GSP14_MIPS_CPU_H_
+#ifndef SRC_GSP14_CPU_MIPS_H_
+#define SRC_GSP14_CPU_MIPS_H_
 
 /*!
  * Prints out current value of pc, nPC and jPC, all register values and the values of hi and lo.
@@ -161,4 +161,4 @@ mips_error add_sub_bitwise(uint32_t src1, uint32_t src2, uint32_t dest,uint32_t 
  */
 mips_error less_than(uint32_t src1, uint32_t src2, uint32_t dest, uint32_t fn_code,mips_cpu_h state);
 
-#endif /* SRC_GSP14_MIPS_CPU_H_ */
+#endif /* SRC_GSP14_CPU_MIPS_H_ */
