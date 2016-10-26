@@ -556,75 +556,99 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, int32_t si,
 	//if ((val_s + i)%4!=0){
 	//	return mips_ExceptionInvalidAlignment;
 	//}
+	uint32_t eff_adr = (val_s + si);
+	uint32_t lsbs = 0x00000003;
+	uint32_t mask = 0;
 	if (opcode < 0x27 && t==0){
 		return err;
 	}
 	switch (opcode) {
 	case 0x24: // LBU
-		err = mips_mem_read(state->mem, (val_s + si), 1, &tmp8);
+		err = mips_mem_read(state->mem, eff_adr, 1, &tmp8);
 		tmp32 = (uint32_t)tmp8;
 		break;
 	case 0x20: // LB
-		err = mips_mem_read(state->mem, (val_s + si), 1, &tmp8);
+		err = mips_mem_read(state->mem, eff_adr, 1, &tmp8);
 		tmp32 = (int32_t)((int8_t)tmp8);
 		break;
 	case 0x21: // LH
-		if (((val_s + si) % 2) != 0){
+		if ((eff_adr % 2) != 0){
 			return mips_ExceptionInvalidAlignment;
 		}
-		err = mips_mem_read(state->mem, (val_s + si), 2, (uint8_t*) &tmp16);
+		err = mips_mem_read(state->mem, eff_adr, 2, (uint8_t*) &tmp16);
 		tmp16 = __builtin_bswap16(tmp16);
 		tmp32 = (int32_t)((int16_t)tmp16);
 		break;
 	case 0x25: // LHU
-		err = mips_mem_read(state->mem, (val_s + si), 2, (uint8_t*) &tmp16);
+		err = mips_mem_read(state->mem, eff_adr, 2, (uint8_t*) &tmp16);
 		tmp16 = __builtin_bswap16(tmp16);
 		tmp32 = (uint32_t)tmp16;
 		break;
 	case 0x22: //LWL
-		// Load the first byte
-		err = mips_mem_read(state->mem, (val_s + si), 1, &tmp8);
-		// Put the first byte into tmp32
-		tmp32 = (uint32_t)tmp8 << 24;
-
-		// Load the second byte
-		err = mips_mem_read(state->mem, (val_s + si + 1), 1, &tmp8);
-		// Put the second byte into tmp32
-		tmp32 = tmp32 | (uint32_t)tmp8 << 16;
-		// Remove the right half of the word
-		tmp32 = tmp32 & 0xFFFF0000;
-		val_t = val_t & 0x0000FFFF;
-		tmp32= val_t | tmp32;
+		// Get the left significant two bits
+		lsbs = lsbs&eff_adr;
+		// Remove the lsbs from eff_adr
+		eff_adr = eff_adr&0xFFFFFFFc;
+		// Load from the beginning of the word
+		err = mips_mem_read(state->mem, eff_adr, 4, (uint8_t*)&tmp32);
+		// Swap endianness
+		tmp32 = __builtin_bswap32(tmp32);
+		switch(lsbs){
+		case 0x0:
+			mask = 0xFFFFFFFF;
+			break;
+		case 0x1:
+			mask = 0xFFFFFF00;
+			break;
+		case 0x2:
+			mask = 0xFFFF0000;
+			break;
+		case 0x3:
+			mask = 0xFF000000;
+			break;
+		}
+		tmp32= (val_t & ~mask) | (tmp32 & mask);
 		break;
 	case 0x26: // LWR
-		// Load the first byte
-		err = mips_mem_read(state->mem, (val_s + si + 2), 1, &tmp8);
-		// Put first byte into tmp32
-		tmp32 = (uint32_t)tmp8 << 8;
-		// Load the second byte
-		err = mips_mem_read(state->mem, (val_s + si + 3), 1, &tmp8);
-		// Put second byte into tmp32
-		tmp32 = tmp32 | (uint32_t)tmp8;
-		// Remove the left half of the word
-		tmp32 = tmp32 & 0x0000FFFF;
-		val_t = val_t & 0xFFFF0000;
-		tmp32= val_t | tmp32;
+		// Get the left significant two bits
+		lsbs = lsbs & eff_adr;
+		// Remove the lsbs from eff_adr
+		eff_adr = eff_adr & 0xFFFFFFFc;
+		// Load from the beginning of the word
+		err = mips_mem_read(state->mem, eff_adr, 4, (uint8_t*)&tmp32);
+		// Swap endianness
+		tmp32 = __builtin_bswap32(tmp32);
+		switch(lsbs){
+		case 0x0:
+			mask = 0x000000FF;
+			break;
+		case 0x1:
+			mask = 0x0000FFFF;
+			break;
+		case 0x2:
+			mask = 0x00FFFFFF;
+			break;
+		case 0x3:
+			mask = 0xFFFFFFFF;
+			break;
+		}
+		tmp32= (val_t & ~mask) | (tmp32 & mask);
 		break;
 	case 0x23: // LW
-		if (((val_s + si) % 4) != 0){
+		if ((eff_adr % 4) != 0){
 			return mips_ExceptionInvalidAlignment;
 		}
-		err = mips_mem_read(state->mem, (val_s + si), 4, (uint8_t*) &tmp32);
+		err = mips_mem_read(state->mem, eff_adr, 4, (uint8_t*) &tmp32);
 		tmp32 = __builtin_bswap32(tmp32);
 		break;
 	case 0x28: // SB
 		tmp8 = (uint8_t)(val_t & 0x000000FF);
-		err = mips_mem_write(state->mem, (val_s + si),1, &tmp8);
+		err = mips_mem_write(state->mem, eff_adr,1, &tmp8);
 		break;
 	case 0x29: // SH
 		tmp16 = (uint16_t)(val_t & 0x0000FFFF);
 		tmp16 = __builtin_bswap16(tmp16);
-		err = mips_mem_write(state->mem, (val_s + si),2, (uint8_t*)&tmp16);
+		err = mips_mem_write(state->mem, eff_adr,2, (uint8_t*)&tmp16);
 		break;
 	case 0x2b: // SW
 		tmp32 = __builtin_bswap32(val_t);
