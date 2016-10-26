@@ -238,5 +238,7 @@ Imemwrite,msg,instr,s,t,i_val,s_val,t_val,memloc,ans,exp_err,
 0x43,store word aligned address,SW,1,2,0xc,0x1000,0x12345678,0x100c,0x12345678,0,
 0x43,store word unaligned address,SW,1,2,0xf,0x1000,0x12345678,0,0,0x2003,
 0x43,store word negative address,SW,1,2,0xFFF8,0,0x12345678,0,0,0x2002,
-,,,,,,,,,,,
+Rmdiv,msg,Instr,s reg,t_reg,d_reg,h val,s val,t val,hi,lo,err_exp
+0x16,divide by 0,DIV,1,2,0,0,-15,0,0,0,0
+0x16,divide by 0,DIVU,1,2,0,0,15,0,0,0,0
 STOP,,,,,,,,,,,

@@ -101,7 +101,7 @@ model_state::model_state(mips_cpu_h cpu, uint32_t dest, uint32_t val, uint32_t N
 	mips_error err;
 	for (unsigned i=0;i<32;i++){
 		err = mips_cpu_get_register(cpu, i, &tmp_val);
-		if (err!=mips_Success){cout << "Error reading register " <<i<<endl;}
+		if (err!=mips_Success){cerr << "Error reading register " <<i<<endl;}
 		regs[i] = tmp_val;
 	}
 	regs[dest] = val;
@@ -134,6 +134,20 @@ result_set::result_set(int passed_in){
 /*
 * END OF STRUCT DEFINITIONS
 */
+int mips_test_begin_test_wrapper(string func){
+	cerr << "-----------------------------------" << endl;
+	int testId = mips_test_begin_test(func.c_str());
+	cerr << "Begin test: " << testId << " Function: " << func << endl;
+	return testId;
+}
+void mips_test_end_test_wrapper(int testId, int passed, string msg){
+	string pf = "Failed";
+	if (passed){
+		pf = "Passed";
+	}
+	cerr << "Result: " << pf << endl;
+	mips_test_end_test(testId, passed,msg.c_str());
+}
 
 /*
 * MAIN FUNCTION
@@ -146,7 +160,6 @@ int main(int argc, char* argv[])
     {
     	printf("Argument %d : %s\n", i, argv[i]);
     }
-
     // Reverse map of opcodes for easy creation of opcodes.
     for (auto const &i: op_to_str) {
         ij_to_op[i.second] = i.first;
@@ -155,17 +168,16 @@ int main(int argc, char* argv[])
 	// Create memory
     uint32_t mem_size = 0x2000;
 	mips_mem_h mem = mips_mem_create_ram(mem_size);
-	cout << "Memory size: " << mem_size << endl;
+	cerr << "Memory size: " << mem_size << endl;
 	// Prepare for tests
 	mips_test_begin_suite();
-
 	// Create CPU
-	int testId = mips_test_begin_test("<internal>");
+	int testId = mips_test_begin_test_wrapper("<internal>");
 	mips_cpu_h cpu = mips_cpu_create(mem);
 	result_set results(1,"Test that all 32 registers exist, are zeroed, contain uint32_ts and pc is 0 when cpu is created.");
 	model_state model(cpu, 0, 0, 0);
 	compare_model(cpu,model,results);
-	mips_test_end_test(testId, results.passed, results.msg.c_str());
+	mips_test_end_test_wrapper(testId, results.passed, results.msg.c_str());
 
 	// Get & Set debug level
 	set_debug_level(argc,argv,cpu);
@@ -178,7 +190,13 @@ int main(int argc, char* argv[])
 	// Read test_spec into vector of strings
 	vector<vector<string> > spec1;
 	// Could pass debug level into this function and use it to help debug the test program.
-	parse_test_spec("mips_test_spec.csv", spec1);
+	if (parse_test_spec("mips_test_spec.csv", spec1)){
+		cerr << endl << "*************************" << endl
+				<< "Could not open test file." << endl
+				<< "*************************" << endl
+				<< "Aborting test program." << endl;
+		return 0;
+	}
 
 	// Execute test spec
 	run_spec(spec1, mem,cpu);
@@ -201,7 +219,7 @@ int main(int argc, char* argv[])
 void internal_tests(mips_cpu_h cpu, int i){
 	result_set results(1,"");
 	model_state model(cpu, 0, 0, 0);
-	int testId = mips_test_begin_test("<internal>");
+	int testId = mips_test_begin_test_wrapper("<internal>");
 	//! All the tests depend on reset...
 	switch(i){
 	case 0:
@@ -231,9 +249,9 @@ void internal_tests(mips_cpu_h cpu, int i){
 	}
 	compare_model(cpu,model,results);
 	if (!results.passed){
-		cout << "Test " << testId << ", " << results.msg << " Failed." << endl;
+		cerr << "Test " << testId << ", " << results.msg << " Failed." << endl;
 	}
-	mips_test_end_test(testId, results.passed, results.msg.c_str());
+	mips_test_end_test_wrapper(testId, results.passed, results.msg.c_str());
 	mips_cpu_reset(cpu);
 }
 /*
@@ -245,14 +263,9 @@ int parse_test_spec(string filename, vector<vector<string> > &spec){
 	string line;
 	ifstream test_file(filename);
 	// Check test file was opened.
-	if (test_file.is_open()){
-		cout << "Test file opened." << endl;
-	}
-	else{
-		cout << "Could not open test file." << endl;
+	if (!test_file.is_open()){
 		return 1;
 	}
-
 	int i = 0;
 	while (getline(test_file,line)){
 		std::istringstream s(line);
@@ -292,7 +305,7 @@ int set_debug_level(int argc, char* argv[],mips_cpu_h cpu){
 			}
 		}
 	}
-	cout << "Set debug level to: " << level << ". Print output to: " << filename;
+	cerr << "Set debug level to: " << level << ". Print output to: " << filename;
 	mips_cpu_set_debug_level(cpu,level,dest);
 	return level;
 }
@@ -348,7 +361,7 @@ int compare_model(mips_cpu_h cpu, model_state model, result_set &results){
 			return 1;
 		}
 		if (model.regs[i]!=tmp) {
-			cout << hex << "Reg " << i << " = 0x" << tmp << ". Should be 0x" << model.regs[i] << "." << dec <<endl;
+			cerr << hex << "Reg " << i << " = 0x" << tmp << ". Should be 0x" << model.regs[i] << "." << dec <<endl;
 			results.passed=0;
 			return 1;
 		}
@@ -356,7 +369,7 @@ int compare_model(mips_cpu_h cpu, model_state model, result_set &results){
 	err = mips_cpu_get_pc(cpu, &pc);
 	if (mips_test_check_err(err, results)){return 1;}
 	if (pc!=model.pc){
-		cout << "PC = " << pc << ". Should be " << model.pc<< endl;
+		cerr << "PC = " << pc << ". Should be " << model.pc<< endl;
 		results.passed=0;
 		return 1;
 	}
@@ -400,7 +413,7 @@ void run_spec(const vector<vector<string>> &spec, mips_mem_h mem, mips_cpu_h cpu
 			(spec[i][0]=="Imemwrite")
 					){
 			// Ignore header rows
-			// cout << "Ignore " << spec[i][0] << " header row." << endl;
+			// cerr << "Ignore " << spec[i][0] << " header row." << endl;
 			continue;
 		}
 		if (spec[i][0]=="STOP"){
@@ -412,10 +425,10 @@ void run_spec(const vector<vector<string>> &spec, mips_mem_h mem, mips_cpu_h cpu
 		// Reset results - [i][1] contains the message
 		result_set results(1,spec[i][1]);
 		// Begin test
-		testId = mips_test_begin_test(func.c_str());
+		testId = mips_test_begin_test_wrapper(func.c_str());
 		// Reset CPU
 		mips_cpu_reset(cpu);
-		// cout << "0x" << hex << type << dec << endl;
+		// cerr << "0x" << hex << type << dec << endl;
 		switch(type){
 		case test_Normal: // 0x1
 			test_normal_functions(spec[i],results,mem,cpu);
@@ -438,13 +451,13 @@ void run_spec(const vector<vector<string>> &spec, mips_mem_h mem, mips_cpu_h cpu
 			continue;
 		default:
 			results.passed = 0;
-			cout << "Didn't recognise type " << type << "skipping test." << endl;
+			cerr << "Didn't recognise type " << type << "skipping test." << endl;
 			continue;
 		}
 		if(!results.passed){
-			cout << "Test " << testId << ", " << func <<". Testing " << results.msg << ". Result:" << results.passed << endl;
+			cerr << "Test " << testId << ", " << func <<". Testing " << results.msg << ". Result:" << results.passed << endl;
 		}
-		mips_test_end_test(testId, results.passed, results.msg.c_str());
+		mips_test_end_test_wrapper(testId, results.passed, results.msg.c_str());
 	}
 }
 
@@ -477,7 +490,7 @@ void test_normal_functions(const vector<string> &row, result_set &results, mips_
 		err = mips_cpu_set_register(cpu, t, t_val);
 		break;
 	case instr_RT_type:
-		cout << "RT-type instruction ended up in Normal handler, shouldn't be here." << endl;
+		cerr << "RT-type instruction ended up in Normal handler, shouldn't be here." << endl;
 		results.passed = 0;
 		return;
 	case instr_I_type:
@@ -494,11 +507,11 @@ void test_normal_functions(const vector<string> &row, result_set &results, mips_
 		break;
 	case instr_J_type:
 		// This would be J-type functions but again none in the normal testing category
-		cout << "J-type instruction ended up in Normal handler, shouldn't be here." << endl;
+		cerr << "J-type instruction ended up in Normal handler, shouldn't be here." << endl;
 		results.passed = 0;
 		return;
 	default:
-		cout << "Strange instruction type code ended up in Normal handler, shouldn't be here." << endl;
+		cerr << "Strange instruction type code ended up in Normal handler, shouldn't be here." << endl;
 		results.passed = 0;
 		return;
 	}
@@ -514,7 +527,7 @@ void test_normal_functions(const vector<string> &row, result_set &results, mips_
 	if (exp_err||err){
 		if (err != exp_err){
 			results.passed = 0;
-			cout << hex << "Incorrect error message " << err << " was expecting " << exp_err << dec <<endl;
+			cerr << hex << "Incorrect error message " << err << " was expecting " << exp_err << dec <<endl;
 		}
 		return;
 	}
@@ -584,11 +597,11 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 		branch = s_to_ui(row[9]);
 		exp_err3 = s_to_ui(row[10]);
 		target = (int32_t)(loc+4) + (i<<2);
-		//cout << "Target: 0x" << hex <<target <<dec<< endl;
+		//cerr << "Target: 0x" << hex <<target <<dec<< endl;
 		// create I type bitstream
 		params = {s,t,s_to_ui(row[5])};
 		instruction_bits = test_construct_bitstream(func, instr_I_type, params);
-		//cout << "Instruction bits: 0x" << hex << instruction_bits << dec << endl;
+		//cerr << "Instruction bits: 0x" << hex << instruction_bits << dec << endl;
 		// Set s_val and t_val
 		err = mips_cpu_set_register(cpu,s,s_val);
 		err = mips_cpu_set_register(cpu,t,t_val);
@@ -597,7 +610,7 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 		dest = 31;
 		j = s_to_ui(row[3]);
 		target = j << 2;
-		//cout << "Jumping to address: 0x" << hex << target << dec << endl;
+		//cerr << "Jumping to address: 0x" << hex << target << dec << endl;
 		link = s_to_ui(row[4]);
 		exp_err3 = s_to_ui(row[5]);
 		// create j-type bitstream
@@ -605,7 +618,7 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 		instruction_bits = test_construct_bitstream(func, instr_J_type, params);
 		break;
 	default:
-		cout << "Strange instruction type code ended up in branch handler, shouldn't be here." << endl;
+		cerr << "Strange instruction type code ended up in branch handler, shouldn't be here." << endl;
 		results.passed = 0;
 		return;
 	}
@@ -624,7 +637,7 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 		err = mips_cpu_step(cpu);
 		if (err!=exp_err1){
 			results.passed = 0;
-			cout << hex << "Incorrect error message " << err << " was expecting " << exp_err1 << dec << endl;
+			cerr << hex << "Incorrect error message " << err << " was expecting " << exp_err1 << dec << endl;
 		}
 		return;
 	}
@@ -643,10 +656,10 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 	// Write add instruction to delay slot location
 	err = mips_mem_write(mem, loc+4, 4, (uint8_t*)&instruction_bits);
 	err = mips_cpu_step(cpu);
-	//cout << "Error code: 0x" << hex << err <<dec << endl;
+	//cerr << "Error code: 0x" << hex << err <<dec << endl;
 	// If the cpu state doesn't match the model, return, no further testing.
 	if (compare_model(cpu,model,results)){
-		cout << "Failed at first step of branch instruction." << endl;
+		cerr << "Failed at first step of branch instruction." << endl;
 		return;
 	}
 	// After the second step, the delay slot instruction must execute (always do a simple add for this)
@@ -655,14 +668,14 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 	// if not meant to branch, check that delay slot instruction executed, and that pc = loc + 8
 	if (!branch){
 		if (compare_model(cpu,model2,results)){
-			cout << "Failed at second step of non-branching instruction." << endl;
+			cerr << "Failed at second step of non-branching instruction." << endl;
 		}
 		// step again, check pc only incremented by 4
 		mips_cpu_step(cpu);
 		uint32_t tmp_pc;
 		err = mips_cpu_get_pc(cpu,&tmp_pc);
 		if (tmp_pc!=loc+12){
-			cout << "Failed at third step of non-branching instruction." << endl;
+			cerr << "Failed at third step of non-branching instruction." << endl;
 			results.passed=0;
 		}
 		return;
@@ -670,7 +683,7 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 	// PC must be = target. Also reg[dest] must equal PC+8, but we did that earlier
 	model2.pc = target;
 	if (compare_model(cpu,model2,results)){
-		cout << "Failed at second step of branch instruction." << endl;
+		cerr << "Failed at second step of branch instruction." << endl;
 		return;
 	}
 
@@ -692,12 +705,12 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 		err = mips_cpu_step(cpu);
 		if (err!=exp_err3){
 			results.passed = 0;
-			cout << hex << "Incorrect error message " << err << " was expecting " << exp_err3 << dec <<endl;
+			cerr << hex << "Incorrect error message " << err << " was expecting " << exp_err3 << dec <<endl;
 		}
 		return;
 	}
 	if (compare_model(cpu,model3,results)){
-		cout << "Failed at third step of branch instruction." << endl;
+		cerr << "Failed at third step of branch instruction." << endl;
 	}
 	return;
 }
@@ -752,7 +765,7 @@ void test_memory_write_functions(const vector<string> &row, result_set &results,
 	// Check that it is the correct answer.
 	if (b!=ans){
 		results.passed=0;
-		cout << hex << "Read 0x" << b << " from memory. Was expecting 0x" << ans << dec << "." << endl;
+		cerr << hex << "Read 0x" << b << " from memory. Was expecting 0x" << ans << dec << "." << endl;
 	}
 	return;
 }
@@ -803,7 +816,7 @@ void test_memory_read_functions(const vector<string> &row, result_set &results, 
 	if (exp_err||err){
 		if (err!=exp_err){
 			results.passed=0;
-			cout << hex << "Incorrect error message " << err << " was expecting " << exp_err << dec <<endl;
+			cerr << hex << "Incorrect error message " << err << " was expecting " << exp_err << dec <<endl;
 		}
 		return;
 	}
@@ -820,9 +833,9 @@ void test_memory_read_functions(const vector<string> &row, result_set &results, 
 //! These are fairly complicated to test, since they require multiple steps through the CPU.
 //! Require MFHI MFLO to be working in order to test.
 void test_multdiv_functions(const vector<string> &row, result_set &results,int testId, mips_mem_h mem, mips_cpu_h cpu){
-	//cout << "Got to multdiv functions, not ready yet, fail test." << endl;
+	//cerr << "Got to multdiv functions, not ready yet, fail test." << endl;
 	//results.passed = 0;
-	//mips_test_end_test(testId,results.passed,results.msg.c_str());
+	//mips_test_end_test_wrapper(testId,results.passed,results.msg.c_str());
 	//return;
 	// Initialise variables
 	uint32_t s,t,d,h,s_val, t_val,hi,lo, err_exp; //! s_val * t_val or s_val / t_val
@@ -830,7 +843,9 @@ void test_multdiv_functions(const vector<string> &row, result_set &results,int t
 	uint32_t instruction_bits;
 	string func = row[2];
 	stringstream ss;
-
+	if (row[1]=="divide by 0"){
+		cerr << "Testing divide by 0, if program crashes with floating point exception CPU has no divide by 0 protection." << endl;
+	}
 	// Get variables from vector
 	s = s_to_ui(row[3]);
 	t = s_to_ui(row[4]);
@@ -860,13 +875,13 @@ void test_multdiv_functions(const vector<string> &row, result_set &results,int t
 		if (err!=err_exp){
 			results.passed = 0;
 		}
-		mips_test_end_test(testId, results.passed, results.msg.c_str());
+		mips_test_end_test_wrapper(testId, results.passed, results.msg.c_str());
 		return;
 	}
 	// Nothing should have changed except PC
 	if (compare_model(cpu,model,results)){
-		cout << func << " failed at first step." << endl;
-		mips_test_end_test(testId, results.passed, results.msg.c_str());
+		cerr << func << " failed at first step." << endl;
+		mips_test_end_test_wrapper(testId, results.passed, results.msg.c_str());
 	}
 	// Write MFHI function to memory.
 	uint32_t d1,d2;
@@ -883,10 +898,10 @@ void test_multdiv_functions(const vector<string> &row, result_set &results,int t
 	int step2 = compare_model(cpu,model1, results);
 	if (step2){
 		//! MFHI failed OR MULT/DIV failed. Fail both tests.
-		mips_test_end_test(testId, results.passed, results.msg.c_str());
-		testId = mips_test_begin_test("MFHI");
+		mips_test_end_test_wrapper(testId, results.passed, results.msg.c_str());
+		testId = mips_test_begin_test_wrapper("MFHI");
 		ss << "Testing " << func << " and MFHI value was wrong. Failing MFHI as well under this test.";
-		mips_test_end_test(testId, 0,ss.str().c_str());
+		mips_test_end_test_wrapper(testId, 0,ss.str().c_str());
 		return;
 	}
 
@@ -902,14 +917,14 @@ void test_multdiv_functions(const vector<string> &row, result_set &results,int t
 
 	if (compare_model(cpu,model2,results)){
 		//! MFLO failed or MULT/DIV failed. Fail both tests.
-		mips_test_end_test(testId, results.passed, results.msg.c_str());
-		testId = mips_test_begin_test("MFLO");
+		mips_test_end_test_wrapper(testId, results.passed, results.msg.c_str());
+		testId = mips_test_begin_test_wrapper("MFLO");
 		ss << "Testing " << func << " and MFLO value was wrong. Failing MFLO as well under this test.";
-		mips_test_end_test(testId,0,ss.str().c_str());
+		mips_test_end_test_wrapper(testId,0,ss.str().c_str());
 		if (!step2){ // MFHI worked, even if MFLO/MULT/DIV failed.
-			testId = mips_test_begin_test("MFHI");
+			testId = mips_test_begin_test_wrapper("MFHI");
 			ss << "Testing " << func << " and MFHI value was correct. Passing MFHI under this test.";
-			mips_test_end_test(testId, results.passed, ss.str().c_str());
+			mips_test_end_test_wrapper(testId, results.passed, ss.str().c_str());
 		}
 		return;
 	}
@@ -917,13 +932,13 @@ void test_multdiv_functions(const vector<string> &row, result_set &results,int t
 
 	// OR, everything passed.
 	// End mult/div test
-	mips_test_end_test(testId, results.passed, results.msg.c_str());
-	testId = mips_test_begin_test("MFLO");
+	mips_test_end_test_wrapper(testId, results.passed, results.msg.c_str());
+	testId = mips_test_begin_test_wrapper("MFLO");
 	ss << "Testing " << func << " and MFLO value was correct. Passing MFLO under this test.";
-	mips_test_end_test(testId, results.passed, ss.str().c_str());
-	testId = mips_test_begin_test("MFHI");
+	mips_test_end_test_wrapper(testId, results.passed, ss.str().c_str());
+	testId = mips_test_begin_test_wrapper("MFHI");
 	ss << "Testing " << func << " and MFHI value was correct. Passing MFHI under this test.";
-	mips_test_end_test(testId, results.passed, ss.str().c_str());
+	mips_test_end_test_wrapper(testId, results.passed, ss.str().c_str());
 	return;
 }
 
@@ -958,13 +973,13 @@ void test_mtmf_functions(const vector<string> &row, result_set &results, int tes
 			results.passed = 0;
 		}
 		// end test
-		mips_test_end_test(testId, results.passed, results.msg.c_str());
+		mips_test_end_test_wrapper(testId, results.passed, results.msg.c_str());
 		return;
 	}
 	if (compare_model(cpu,model,results)){
-		cout << "Failed at first step." << endl;
+		cerr << "Failed at first step." << endl;
 		// End test
-		mips_test_end_test(testId, results.passed, results.msg.c_str());
+		mips_test_end_test_wrapper(testId, results.passed, results.msg.c_str());
 		return;
 	}
 	d2_reg = 16;
@@ -987,21 +1002,21 @@ void test_mtmf_functions(const vector<string> &row, result_set &results, int tes
 	err = mips_cpu_step(cpu);
 	if (compare_model(cpu,model1,results)){
 		stringstream ss;
-		cout << "Failed at second step." << endl;
+		cerr << "Failed at second step." << endl;
 		results.passed = 0;
 
-		cout << "Test " << testId << ", " << func <<". Testing " << results.msg << ". Result:" << results.passed << endl;
+		cerr << "Test " << testId << ", " << func <<". Testing " << results.msg << ". Result:" << results.passed << endl;
 
-		mips_test_end_test(testId, results.passed, results.msg.c_str());
+		mips_test_end_test_wrapper(testId, results.passed, results.msg.c_str());
 		//! Failure could also have been caused by MFHI/MFLO
-		testId = mips_test_begin_test(func2.c_str());
+		testId = mips_test_begin_test_wrapper(func2.c_str());
 		ss << func << " and answer was incorrect. Failing " << func2;
 		results.msg = ss.str();
 		results.passed = 0;
-		cout << "Test " << testId << ", " << func2 <<". Testing " << results.msg << ". Result:" << results.passed << endl;
-		mips_test_end_test(testId,results.passed,results.msg.c_str());
+		cerr << "Test " << testId << ", " << func2 <<". Testing " << results.msg << ". Result:" << results.passed << endl;
+		mips_test_end_test_wrapper(testId,results.passed,results.msg.c_str());
 		return;
 	}
-	mips_test_end_test(testId,results.passed,results.msg.c_str());
+	mips_test_end_test_wrapper(testId,results.passed,results.msg.c_str());
 	return;
 }
