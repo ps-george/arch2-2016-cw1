@@ -208,10 +208,10 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 	val_l = __builtin_bswap32(val_b);
 
 	if (state->debugLevel) {
-				fprintf(state->debugDest, "\nCPU state - before step.\n");
-				string state_str = mips_cpu_print_state(state);
-				fprintf(state->debugDest, "%s\n", state_str.c_str());
-			}
+		fprintf(state->debugDest, "\nCPU state - before step.\n");
+		string state_str = mips_cpu_print_state(state);
+		fprintf(state->debugDest, "%s\n", state_str.c_str());
+	}
 
 	// Print converted full instruction code
 	if (state->debugLevel) {
@@ -234,8 +234,6 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 
 	// If there is an error, return err.
 	if (op == "ni") {
-		/*fprintf(stdout, "Opcode: 0x%08x. Instruction: %s\n", opcode,
-						op.c_str());*/
 		return mips_ErrorNotImplemented;
 	}
 	// Pick whether R type, RT-type(opcode in t sub-type BLTZ etc), J-type or I-type instruction
@@ -270,27 +268,24 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 		}
 		err = cpu_execute_i(s, t, i, opcode, state);
 	} else {
-		/*fprintf(stdout, "Opcode: 0x%08x. Instruction: %s\n", opcode,
-								op.c_str());
-		*/
 		return mips_ExceptionInvalidInstruction;
 	}
 	if (err==mips_Success || state->delay_slot){
 		mips_cpu_increment_pc(state);
 	}
 	if (state->debugLevel) {
-			fprintf(state->debugDest, "\nCPU stepped - new state below.\n");
-			string state_str = mips_cpu_print_state(state);
-			fprintf(state->debugDest, "%s\n", state_str.c_str());
-		}
+		fprintf(state->debugDest, "\nCPU stepped - new state below.\n");
+		string state_str = mips_cpu_print_state(state);
+		fprintf(state->debugDest, "%s\n", state_str.c_str());
+	}
 	/*
 	"By convention, if an exception or interrupt prevents the completion of an
 	instruction occupying a branch delay slot, the instruction stream is continued by
 	re-executing the branch instruction."
 	*/
 	if (state->debugLevel) {
-			fprintf(state->debugDest, "Error message: 0x%x\n",err);
-		}
+		fprintf(state->debugDest, "Error message: 0x%x\n",err);
+	}
 	return err;
 }
 
@@ -300,7 +295,7 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
  string mips_cpu_print_state(mips_cpu_h state) {
  	stringstream msg;
  	msg << "-------------" << endl;
- 	msg << "pc: " << state->pc << "nPC: " << state->nPC << "jPC: " << state->jPC << endl;
+ 	msg << "pc: " << state->pc << " nPC: " << state->nPC << " jPC: " << state->jPC << endl;
  	for (unsigned i = 0; i < 32; i++) {
  		msg << "Reg ";
  		if (i < 10) {
@@ -402,13 +397,11 @@ mips_error cpu_execute_rt(const uint32_t &src, const uint32_t &fn_code,
 	int32_t target = (offset << 2) + (pc+4);
 	switch (fn_code) {
 	case 0x0:	// BLTZ
-		if(state->debugLevel){fprintf(stdout,"If 0x%x is less than 0, branch to 0x%x.\n", src_v, target);}
 		if (src_v < 0) {
 			return mips_cpu_jump(target, 0, state);
 		}
 		break;
 	case 0x1: // BGEZ
-		if(state->debugLevel){fprintf(stdout,"If 0x%x is greater than or equal to 0, branch to 0x%x.\n", src_v, target);}
 		if (src_v >= 0) {
 			return mips_cpu_jump(target, 0, state);
 		}
@@ -896,13 +889,8 @@ mips_error mult_div(uint32_t src1, uint32_t src2, uint32_t fn_code,
  		uint32_t div,mod;
  		div = val_s / val_t;
  		mod = val_s % val_t;
- 		state->lo = val_s / val_t;
- 		state->hi = val_s % val_t;
- 		if(state->debugLevel){
- 		fprintf(stderr,
- 						"0x%x divide 0x%x = 0x%x\n0x%x modulo 0x%x = 0x%x\n",
-						val_s,val_t,div,val_s,val_t,mod);
- 		}
+ 		state->lo = div;
+ 		state->hi = mod;
  	}
  	return err;
  }
@@ -924,8 +912,6 @@ mips_error add_sub_bitwise(uint32_t src1, uint32_t src2, uint32_t dest,
 	//! ADD, ADDU (add should have overflow catch mips_ExceptionArithmeticOverflow)
 	switch (fn_code) {
 	case 0x20: //ADD
-		if(state->debugLevel){fprintf(state->debugDest,
-						"src1_val = %x, src2_val = %x",(src1_val),(src2_val));}
 		if (overflow(src1_val,src2_val)){
 			err = mips_ExceptionArithmeticOverflow;
 			return err;
@@ -985,8 +971,6 @@ mips_error less_than(uint32_t src1, uint32_t src2, uint32_t dest, uint32_t fn_co
 		}
 		break;
 	case 0x2b: // SLTU
-		if(state->debugLevel){fprintf(state->debugDest,
-								"%x < %x",val_s,val_t);}
 		if (val_s < val_t) {
 			*dest_reg = 1;
 		} else {

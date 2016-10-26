@@ -306,6 +306,9 @@ int set_debug_level(int argc, char* argv[],mips_cpu_h cpu){
 			}
 		}
 	}
+	if (dest==NULL){
+		dest = stderr;
+	}
 	cerr << "Set debug level to: " << level << ". Print output to: " << filename;
 	mips_cpu_set_debug_level(cpu,level,dest);
 	return level;
