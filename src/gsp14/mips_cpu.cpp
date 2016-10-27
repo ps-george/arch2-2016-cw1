@@ -432,7 +432,7 @@ mips_error cpu_execute_j(const uint32_t &j, const uint32_t opcode,
 		mips_cpu_h state) {
 	mips_error err = mips_Success;
 	uint32_t target = j;
-	target = j << 2;
+	target = (j << 2) | (state->nPC & 0xFC000000);
 	uint32_t link = 0;
 	// if JAL
 	if (opcode == 0x3) {
@@ -683,9 +683,11 @@ mips_error cpu_execute_r(uint32_t src1, uint32_t src2, uint32_t dest,
 		err = r_shift(src1, src2, dest, shift_amt, fn_code, state);
 	} else if (fn_code == 0x8) {
 		// JR
+		if (src2||dest||shift_amt){return mips_ExceptionInvalidInstruction;}
 		err = mips_cpu_jump(state->regs[src1], 0, state);
 	} else if (fn_code == 0x9) {
 		// jalr
+		if (src2||shift_amt){return mips_ExceptionInvalidInstruction;}
 		err = mips_cpu_jump(state->regs[src1], dest, state);
 	} else if ((0xf < fn_code) && (fn_code < 0x14)) {
 		// MFHI, MTHI, MFLO, MTLO
@@ -706,7 +708,7 @@ mips_error cpu_execute_r(uint32_t src1, uint32_t src2, uint32_t dest,
 		// SLT, SLTU
 		if (shift_amt){return mips_ExceptionInvalidInstruction;
 		}
-		err =less_than(src1, src2, dest, fn_code, state);
+		err = less_than(src1, src2, dest, fn_code, state);
 	} else {
 		return mips_ExceptionInvalidInstruction;
 	}
