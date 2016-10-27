@@ -432,7 +432,7 @@ mips_error cpu_execute_j(const uint32_t &j, const uint32_t opcode,
 		mips_cpu_h state) {
 	mips_error err = mips_Success;
 	uint32_t target = j;
-	target = (j << 2) | (state->nPC & 0xFC000000);
+	target = (j << 2) | (state->nPC & 0xF0000000);
 	uint32_t link = 0;
 	// if JAL
 	if (opcode == 0x3) {

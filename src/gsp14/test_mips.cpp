@@ -662,7 +662,7 @@ void test_branch_functions(const vector<string> &row, result_set &results, mips_
 	case instr_J_type:
 		dest = 31;
 		j = s_to_ui(row[3]);
-		target = j << 2 | ((loc + 4)&0xFC000000);
+		target = j << 2 | ((loc + 4)&0xF0000000);
 		link = s_to_ui(row[4]);
 		loc = s_to_ui(row[5]);
 		exp_err3 = s_to_ui(row[6]);
