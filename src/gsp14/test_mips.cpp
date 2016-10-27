@@ -8,11 +8,13 @@
 #include "string.h"
 #include <iostream>
 #include <sstream>
-#include <functional>
 #include <map>
-#include "test_mips.h"
-#include <iomanip>
+#include <vector>
+//#include <string>
 #include <fstream>
+
+#include "test_mips.h"
+
 using namespace std;
 
 /*

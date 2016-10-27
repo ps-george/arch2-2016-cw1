@@ -8,6 +8,8 @@
 #ifndef SRC_GSP14_CPU_MIPS_H_
 #define SRC_GSP14_CPU_MIPS_H_
 
+#include <mips.h>
+
 /*!
  * Prints out current value of pc, nPC and jPC, all register values and the values of hi and lo.
  * @param state

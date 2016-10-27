@@ -8,10 +8,11 @@
 #ifndef SRC_GSP14_TEST_MIPS_H_
 #define SRC_GSP14_TEST_MIPS_H_
 
-
 #include "mips.h"
+
 #include <vector>
 #include <string>
+
 /*!
  * A struct to hold pass/fail information for each
  * specific test attempted
