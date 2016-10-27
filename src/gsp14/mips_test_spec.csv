@@ -85,29 +85,33 @@ Rmtmf,message,Instr,s_reg,t_reg,d,h val,s_val,err_exp,,,
 0x15,invalid instruction (t set),MTLO,0,1,0,0,0,0x2005,,,
 0x15,invalid instruction (d set),MTLO,0,0,1,0,0,0x2005,,,
 0x15,invalid instruction (shift set),MTLO,0,0,0,1,0,0x2005,,,
-Rmdiv,MSG – needs redoing,Instr,s reg,t_reg,d_reg,h val,s val,t val,hi,lo,err_exp
+Rmdiv,MSG,Instr,s reg,t_reg,d_reg,h val,s val,t val,hi,lo,err_exp
 0x16,3*5=15,MULT,1,2,0,0,3,5,0,15,0
 0x16,-3*5=-15 (sign extend),MULT,1,2,0,0,0xFFFFFFFD,5,0xFFFFFFFF,0xFFFFFFF1,0
 0x16,same reg src,MULT,1,1,0,0,3,3,0,9,0
 0x16,overflow into 64 bit num,MULT,1,2,0,0,0xFFFF,0xEFFFF,0xE,0xFFF00001,0
-0x16,invalid instruction (shift/dest set),MULT,1,2,5,2,0xFFFF,0xEFFFF,0,0,0x2005
+0x16,invalid instruction (dest set),MULT,1,2,5,0,0xFFFF,0xEFFFF,0,0,0x2005
+0x16,invalid instruction (shift set),MULT,1,2,0,5,0xFFFF,0xEFFFF,0,0,0x2005
 0x16,3*5=15,MULTU,1,2,0,0,3,5,0,15,0
 0x16,-3*5=15 (no sign extend),MULTU,1,2,0,0,0xFFFFFFFD,0x5,0x4,0xFFFFFFF1,0
 0x16,same reg src,MULTU,1,1,0,0,3,3,0,9,0
 0x16,overflow into 64 bit num,MULTU,1,2,0,0,0xFFFF,0xEFFFF,0xE,0xFFF00001,0
-0x16,invalid instruction (shift/dest set),MULTU,1,2,5,2,0xFFFF,0xEFFFF,0,0,0x2005
+0x16,invalid instruction (dest set),MULTU,1,2,5,0,0xFFFF,0xEFFFF,0,0,0x2005
+0x16,invalid instruction (shift set),MULTU,1,2,0,2,0xFFFF,0xEFFFF,0,0,0x2005
 0x16,15/5=3 no remainder,DIV,1,2,0,0,15,5,0,3,0
 0x16,15/4=3 remainder 3,DIV,1,2,0,0,15,4,3,3,0
 0x16,-15/5=-3 no remainder,DIV,1,2,0,0,-15,5,0,-3,0
 0x16,same reg src,DIV,1,1,0,0,5,5,0x0,1,0
 0x16,-15/4=-3 remainder,DIV,1,2,0,0,-15,4,-3,-3,0
-0x16,invalid instruction (shift/dest set),DIV,1,2,5,2,0xFFFF,0xEFFFF,0,0,0x2005
+0x16,invalid instruction (dest set),DIV,1,2,5,0,0xFFFF,0xEFFFF,0,0,0x2005
+0x16,invalid instruction (shift set),DIV,1,2,0,2,0xFFFF,0xEFFFF,0,0,0x2005
 0x16,15/5=3 no remainder,DIVU,1,2,0,0,15,5,0,3,0
 0x16,15/4=3 remainder 3,DIVU,1,2,0,0,15,4,3,3,0
 0x16,-15/4= 3FFFFFFC remainder 1 (unsigned interpretation of -15),DIVU,1,2,0,0,-15,4,1,0x3FFFFFFC,0
 0x16,same reg src,DIVU,1,1,0,0,5,5,0x0,1,0
 0x16,same reg src neg,DIVU,1,1,0,0,-1,-1,0,1,0
-0x16,invalid instruction (shift/dest set),DIVU,1,2,5,2,0xFFFF,0xEFFFF,0,0,0x2005
+0x16,invalid instruction (dest set),DIVU,1,2,5,0,0xFFFF,0xEFFFF,0,0,0x2005
+0x16,invalid instruction (shift set),DIVU,1,2,0,2,0xFFFF,0xEFFFF,0,0,0x2005
 Inorm,message,Instr,s_reg,t_reg,i_val,s_val,ans,exp_err,,,
 0x41,3+7=10,ADDI,1,2,7,3,10,0,,,
 0x41,overflow trap,ADDI,1,2,0xFF,0x7FFFFFFF,0x0,0x2006,,,
@@ -135,15 +139,22 @@ Inorm,message,Instr,s_reg,t_reg,i_val,s_val,ans,exp_err,,,
 0x41,destination reg is 0,XORI,1,0,0x5678,0x23456789,0x0,0,,,
 0x41,load 0x5678 to upper bits,LUI,1,2,0x5678,0x23456789,0x56780000,0,,,
 0x41,destination reg is 0,LUI,1,0,0x5678,0x23456789,0,0,,,
-Rbranch,message,Instr,s_reg,t_reg,d_reg,h_val,s_val,link,exp_err,,
-0x12,normal branch to 0xc memory location,JR,2,0,0,0,0xc,0,0,,
-0x12,failed misaligned branch to 0xF,JR,2,0,0,0,0xF,0,0x2003,,
-0x12,linked branch to 0xc,JALR,2,0,30,0,0xc,1,0,,
-0x12,failed misaligned linked branch to 0xF,JALR,2,0,30,0,0xF,1,0x2003,,
-Jbranch,message,instr,j_val,link,exp_err,,,,,,
-0x32,normal jump to 0xc,J,0x3,0,0,,,,,,
-0x32,jump and link to 0xc,JAL,0x3,1,0,,,,,,
-0x32,jump outside range of memory,J,0x2000,0,0x2002,,,,,,
+Rbranch,message,Instr,s_reg,t_reg,d_reg,h_val,s_val,link,exp_err1,exp_err3,
+0x12,normal branch to 0xc memory location,JR,2,0,0,0,0xc,0,0,0,
+0x12,failed misaligned branch to 0xF,JR,2,0,0,0,0xF,0,0,0x2003,
+0x12,linked branch to 0xc,JALR,2,0,30,0,0xc,1,0,0,
+0x12,failed misaligned linked branch to 0xF,JALR,2,0,30,0,0xF,1,0,0x2003,
+0x12,invalid instruction (t_reg set),JR,2,2,0,0,0xc,0,0x2005,0,
+0x12,invalid instruction (shift set),JR,2,0,0,2,0xc,0,0x2005,0,
+0x12,invalid instruction (dest set),JR,2,0,2,0,0xc,0,0x2005,0,
+0x12,invalid instruction (t_reg set),JALR,2,2,0,0,0xc,1,0x2005,0,
+0x12,invalid instruction (shift set),JALR,2,0,0,2,0xc,1,0x2005,0,
+Jbranch,message,instr,j_val,link,loc,exp_err,,,,,
+0x32,normal jump to 0xc,J,0x3,0,0,0,,,,,
+0x32,jump and link to 0xc,JAL,0x3,1,0,0,,,,,
+0x32,jump outside range of memory,J,512000,0,0,0x2002,,,,,
+0x32,jump from 260MB to 256MB using J=0,JAL,0,1,260000,0,,,,,
+0x32,jump from 260MB to 256MB using J=0,J,0,0,260000,0,,,,,
 Ibranch,message,instr,s_reg,t_reg,i_val,s_val,t_val,loc,branch,exp_err,
 0x42,normal branch to +0xc,BEQ,2,3,0x3,5,5,0xc,1,0,
 0x42,don’t take branch to +0xc,BEQ,2,3,0x3,4,5,0xc,0,0,
