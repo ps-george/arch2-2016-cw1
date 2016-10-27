@@ -187,8 +187,13 @@ int main(int argc, char* argv[])
 	// Execute test spec
 	run_spec(spec1, mem,cpu);
 
-	// Test that free cpu works
-	mips_cpu_free(cpu);
+	// Running invalid handler tests
+	cerr << endl << "****************************************************" << endl
+			<< "Running invalid handle argument tests, may crash CPU." << endl
+			<< "****************************************************" << endl;
+	for (unsigned f=0; f<7; ++f){
+		test_invalid_handle(f);
+	}
 
 	mips_test_end_suite();
 	return 0;
@@ -196,6 +201,50 @@ int main(int argc, char* argv[])
 /*
 * END OF MAIN
 */
+void test_invalid_handle(unsigned fnumber){
+	result_set results(1,"");
+	int testId = mips_test_begin_test_wrapper("<internal>");
+	string func = "mips_cpu_";
+	mips_error exp_err = mips_ErrorInvalidHandle;
+	mips_error err = mips_Success;
+	uint32_t tmp;
+	switch(fnumber){
+	case 0:
+		err = mips_cpu_reset(nullptr);
+		func += "reset";
+		break;
+	case 1:
+		err = mips_cpu_get_register(nullptr, 1,&tmp);
+		func += "get_register";
+		break;
+	case 2:
+		err = mips_cpu_set_register(nullptr,1,2);
+		func += "get_register";
+		break;
+	case 3:
+		err = mips_cpu_get_pc(nullptr,&tmp);
+		func += "get_pc";
+		break;
+	case 4:
+		err = mips_cpu_set_pc(nullptr, 4);
+		func += "set_pc";
+		break;
+	case 5:
+		err = mips_cpu_step(nullptr);
+		func += "step";
+		break;
+	case 6:
+		err = mips_cpu_set_debug_level(nullptr,1,stdout);
+		func += "set_debug_level";
+		break;
+	}
+	results.msg = "that " + func + " deals with nullptr handler correctly";
+	if (err!=exp_err){
+		results.passed = 0;
+	}
+	mips_test_end_test_wrapper(testId, results.passed, results.msg);
+}
+
 /*
  * Test internal functions:
  * mips_cpu_h mips_cpu_create(mips_mem_h mem), mips_error mips_cpu_reset(mips_cpu_h state), mips_error mips_cpu_get_register,

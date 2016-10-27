@@ -44,6 +44,8 @@ void mips_test_end_test_wrapper(int testId, int passed, std::string msg);
 
 void internal_tests(mips_cpu_h cpu, int i);
 
+void test_invalid_handle(unsigned fnumber);
+
 /*!
  * Parses the filename specified, and saves each parameter in a row into a string vector,
  * saving each entire row into an over-arching vector (2D array).
