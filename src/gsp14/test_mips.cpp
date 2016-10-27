@@ -10,7 +10,6 @@
 #include <sstream>
 #include <map>
 #include <vector>
-//#include <string>
 #include <fstream>
 
 #include "test_mips.h"
