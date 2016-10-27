@@ -5,15 +5,10 @@
  *      Author: big-g
  */
 
-#include <mips.h>
 #include <string>
-#include <iostream>
 #include <sstream>
-#include <assert.h>
-#include <byteswap.h>
 #include <map>
-#include <functional>
-#include <limits.h>
+
 #include "cpu_mips.h"
 
 using namespace std;
@@ -96,6 +91,9 @@ mips_cpu_h mips_cpu_create(mips_mem_h mem) {
 
 
 mips_error mips_cpu_reset(mips_cpu_h state) {
+	if (state==nullptr){
+		return mips_ErrorInvalidHandle;
+	}
 	state->pc = 0;
 	for (unsigned i = 0; i < 32; i++) {
 		state->regs[i] = 0;
@@ -118,6 +116,9 @@ mips_error mips_cpu_get_register(mips_cpu_h state, //!< Valid (non-empty) handle
 		unsigned index,		//!< Index from 0 to 31
 		uint32_t *value		//!< Where to write the value to
 		) {
+	if (state==nullptr){
+		return mips_ErrorInvalidHandle;
+	}
 	mips_error err = mips_Success;
 
 	if (!(index < 32)) {
@@ -134,6 +135,9 @@ mips_error mips_cpu_set_register(mips_cpu_h state,//!< Valid (non-empty) handle 
 		unsigned index,		//!< Index from 0 to 31
 		uint32_t value		//!< New value to write into register file
 		) {
+	if (state==nullptr){
+		return mips_ErrorInvalidHandle;
+	}
 	mips_error err = mips_Success;
 	if (!(index < 32)) {
 		return mips_ErrorInvalidArgument;
@@ -148,6 +152,9 @@ mips_error mips_cpu_set_register(mips_cpu_h state,//!< Valid (non-empty) handle 
 mips_error mips_cpu_set_pc(mips_cpu_h state,//!< Valid (non-empty) handle to a CPU
 		uint32_t pc			//!< Address of the next instruction to exectute.
 		) {
+	if (state==nullptr){
+		return mips_ErrorInvalidHandle;
+	}
 	mips_error err = mips_Success;
 	if (pc % 4 == 0 || pc == 0) {
 		state->pc = pc;
@@ -161,6 +168,9 @@ mips_error mips_cpu_set_pc(mips_cpu_h state,//!< Valid (non-empty) handle to a C
 mips_error mips_cpu_get_pc(mips_cpu_h state,//!< Valid (non-empty) handle to a CPU
 		uint32_t *pc		//!< Where to write the byte address too
 		) {
+	if (state==nullptr){
+		return mips_ErrorInvalidHandle;
+	}
 	mips_error err = mips_Success;
 	*pc = state->pc;
 
@@ -169,6 +179,9 @@ mips_error mips_cpu_get_pc(mips_cpu_h state,//!< Valid (non-empty) handle to a C
 
 mips_error mips_cpu_set_debug_level(mips_cpu_h state, unsigned level,
 		FILE *dest) {
+	if (state==nullptr){
+		return mips_ErrorInvalidHandle;
+	}
 	mips_error err = mips_Success;
 	state->debugLevel = level;
 	state->debugDest = dest;
@@ -193,13 +206,9 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 	// Read the memory location defined by PC
 	uint32_t val_b, val_l;
 	mips_error err = mips_Success;
-	/*
-	if (state->delay_slot){
-		//! If there is a delay slot
-		val_l = __builtin_bswap32(state->delay_slot);
+	if (state==nullptr){
+		return mips_ErrorInvalidHandle;
 	}
-	*/
-
 	err = mips_mem_read(state->mem, state->pc, 4, (uint8_t*) &val_b);
 	if (err){
 		return err;
@@ -270,7 +279,7 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 	} else {
 		return mips_ExceptionInvalidInstruction;
 	}
-	if (err==mips_Success || state->delay_slot){
+	if (err==mips_Success){ // If there is an error, don't increment the PC so that user can debug
 		mips_cpu_increment_pc(state);
 	}
 	if (state->debugLevel) {
@@ -278,11 +287,6 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
 		string state_str = mips_cpu_print_state(state);
 		fprintf(state->debugDest, "%s\n", state_str.c_str());
 	}
-	/*
-	"By convention, if an exception or interrupt prevents the completion of an
-	instruction occupying a branch delay slot, the instruction stream is continued by
-	re-executing the branch instruction."
-	*/
 	if (state->debugLevel) {
 		fprintf(state->debugDest, "Error message: 0x%x\n",err);
 	}
@@ -308,18 +312,14 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
  	}
 
  	msg << "hi: " << state->hi << " lo: " << state->lo << endl;
- 	;
- 	//msg << "regs: " << state->regs << endl;
- 	//msg << "mem: " << "To be completed." << endl;
  	msg << "debugLevel: " << state->debugLevel << endl;
- 	//msg << "debugDest: " << state->debugDest << endl;
  	return msg.str();
  }
 
 int overflow(int32_t a, int32_t b){
  	// if both a and b are positive and the answer is negative, there has been overflow
  	// if both a and b are negative and the answer is positive, there has been overflow
-	if ((a>0&&b>0&&(a+b<0))||(a<0&&b<0&&a+b>0)){
+	if (( a>0 && b>0 && a+b<0 )||( a<0 && b<0 && a+b>0 )){
 		return 1;
 	}
 	return 0;
@@ -366,9 +366,6 @@ void mips_cpu_increment_pc(mips_cpu_h state){
  	if (link) {
  		state->regs[link] = state->pc + 8;
  	}
- 	/*if (target % 4 != 0) {
- 		return mips_ExceptionInvalidAlignment;
- 	}*/
  	if (state->debugLevel) {
  		fprintf(state->debugDest, "Jumping PC from %d to %d", state->jPC, target);
  	}
@@ -545,10 +542,6 @@ mips_error cpu_memory_funcs(uint32_t opcode, uint32_t s, uint32_t t, int32_t si,
 	uint32_t val_s = state->regs[s];
 	uint32_t val_t = state->regs[t];
 	uint32_t * p_t = &(state->regs[t]);
-	// unaligned memory load and store
-	//if ((val_s + i)%4!=0){
-	//	return mips_ExceptionInvalidAlignment;
-	//}
 	uint32_t eff_adr = (val_s + si);
 	uint32_t lsbs = 0x00000003;
 	uint32_t mask = 0;
