@@ -254,6 +254,7 @@ void mips_test_end_test_wrapper(int testId, int passed, string msg){
 	if (passed){
 		pf = "Passed";
 	}
+	cerr << "Testing " << msg << "." << endl;
 	cerr << "Result: " << pf << endl;
 	mips_test_end_test(testId, passed,msg.c_str());
 }
@@ -457,9 +458,6 @@ void run_spec(const vector<vector<string>> &spec, mips_mem_h mem, mips_cpu_h cpu
 			results.passed = 0;
 			cerr << "Didn't recognise type " << type << "skipping test." << endl;
 			continue;
-		}
-		if(!results.passed){
-			cerr << "Test " << testId << ", " << func <<". Testing " << results.msg << ". Result:" << results.passed << endl;
 		}
 		mips_test_end_test_wrapper(testId, results.passed, results.msg.c_str());
 	}
@@ -904,7 +902,7 @@ void test_multdiv_functions(const vector<string> &row, result_set &results,int t
 		//! MFHI failed OR MULT/DIV failed. Fail both tests.
 		mips_test_end_test_wrapper(testId, results.passed, results.msg.c_str());
 		testId = mips_test_begin_test_wrapper("MFHI");
-		ss << "Testing " << func << " and MFHI value was wrong. Failing MFHI as well under this test.";
+		ss << func << " and MFHI value was wrong. Failing MFHI";
 		mips_test_end_test_wrapper(testId, 0,ss.str().c_str());
 		return;
 	}
@@ -923,12 +921,14 @@ void test_multdiv_functions(const vector<string> &row, result_set &results,int t
 		//! MFLO failed or MULT/DIV failed. Fail both tests.
 		mips_test_end_test_wrapper(testId, results.passed, results.msg.c_str());
 		testId = mips_test_begin_test_wrapper("MFLO");
-		ss << "Testing " << func << " and MFLO value was wrong. Failing MFLO as well under this test.";
+		ss << func << " and MFLO value was wrong. Failing MFLO";
 		mips_test_end_test_wrapper(testId,0,ss.str().c_str());
+		ss.str("");
 		if (!step2){ // MFHI worked, even if MFLO/MULT/DIV failed.
 			testId = mips_test_begin_test_wrapper("MFHI");
-			ss << "Testing " << func << " and MFHI value was correct. Passing MFHI under this test.";
+			ss << func << " and MFHI value was correct. Passing MFHI";
 			mips_test_end_test_wrapper(testId, results.passed, ss.str().c_str());
+			ss.str("");
 		}
 		return;
 	}
@@ -938,11 +938,13 @@ void test_multdiv_functions(const vector<string> &row, result_set &results,int t
 	// End mult/div test
 	mips_test_end_test_wrapper(testId, results.passed, results.msg.c_str());
 	testId = mips_test_begin_test_wrapper("MFLO");
-	ss << "Testing " << func << " and MFLO value was correct. Passing MFLO under this test.";
+	ss << func << " and MFLO value was correct. Passing MFLO";
 	mips_test_end_test_wrapper(testId, results.passed, ss.str().c_str());
+	ss.str("");
 	testId = mips_test_begin_test_wrapper("MFHI");
-	ss << "Testing " << func << " and MFHI value was correct. Passing MFHI under this test.";
+	ss << func << " and MFHI value was correct. Passing MFHI";
 	mips_test_end_test_wrapper(testId, results.passed, ss.str().c_str());
+	ss.str("");
 	return;
 }
 
