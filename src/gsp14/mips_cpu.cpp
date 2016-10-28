@@ -316,12 +316,13 @@ mips_error mips_cpu_step(mips_cpu_h state//! Valid (non-empty) handle to a CPU
  	return msg.str();
  }
 
-int overflow(int32_t a, int32_t b){
+int overflow(uint32_t a, uint32_t b){
  	// if both a and b are positive and the answer is negative, there has been overflow
  	// if both a and b are negative and the answer is positive, there has been overflow
-	if (( a>0 && b>0 && a+b<0 )||( a<0 && b<0 && a+b>0 )){
-		return 1;
-	}
+ 	if (( (a&0x80000000) && (b&0x80000000)  && !((a+b)&0x80000000) )||
+ 	   ( !(a&0x80000000) && !(b&0x80000000) &&  ((a+b)&0x80000000) )){
+ 		return 1;
+ 	}
 	return 0;
 }
 
