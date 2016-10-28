@@ -296,15 +296,15 @@ void internal_tests(mips_cpu_h cpu, int i){
 int mips_test_begin_test_wrapper(string func){
 	cerr << "-----------------------------------" << endl;
 	int testId = mips_test_begin_test(func.c_str());
-	cerr << "Begin test: " << testId << " Function: " << func << endl;
+	cerr << "Test: " << testId << " Function: " << func << endl;
 	return testId;
 }
 void mips_test_end_test_wrapper(int testId, int passed, string msg){
-	string pf = "Failed";
-	if (passed){
-		pf = "Passed";
+	string pf = "Passed";
+	if (!passed){
+		pf = "Failed";
+		cerr << "Testing " << msg << "." << endl;
 	}
-	cerr << "Testing " << msg << "." << endl;
 	cerr << "Result: " << pf << endl;
 	mips_test_end_test(testId, passed,msg.c_str());
 }
@@ -897,7 +897,12 @@ void test_multdiv_functions(const vector<string> &row, result_set &results,int t
 	string func = row[2];
 	stringstream ss;
 	if (row[1]=="divide by 0"){
-		cerr << "Testing divide by 0, if program crashes with floating point exception CPU has no divide by 0 protection." << endl;
+		cerr << "******************************************************************"
+		<< endl 
+		<< "Testing divide by 0, CPU may crash with 'Floating Point Exception'."
+		<< endl
+		<< "******************************************************************"
+		<< endl;
 	}
 	// Get variables from vector
 	s = s_to_ui(row[3]);
