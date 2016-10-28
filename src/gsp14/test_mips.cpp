@@ -144,7 +144,7 @@ int main(int argc, char* argv[])
     int i;
     for(i=0; i<argc; ++i)
     {
-    	printf("Argument %d : %s\n", i, argv[i]);
+    	fprintf(stderr,"Argument %d : %s\n", i, argv[i]);
     }
     // Reverse map of opcodes for easy creation of opcodes.
     for (auto const &i: op_to_str) {
@@ -898,7 +898,7 @@ void test_multdiv_functions(const vector<string> &row, result_set &results,int t
 	stringstream ss;
 	if (row[1]=="divide by 0"){
 		cerr << "******************************************************************"
-		<< endl 
+		<< endl
 		<< "Testing divide by 0, CPU may crash with 'Floating Point Exception'."
 		<< endl
 		<< "******************************************************************"
