@@ -855,17 +855,11 @@ mips_error mult_div(uint32_t src1, uint32_t src2, uint32_t fn_code,
  	case 0x18: // MULT
  		// Cast to int first to sign extend correctly.
  		ans = ((int64_t)((int32_t)val_s)) * ((int64_t)((int32_t) val_t));
- 		if(state->debugLevel){fprintf(state->debugDest,
- 						"0x%08x * 0x%08x = 0x%lx\n",
-						val_s,val_t,(uint64_t)ans);}
  		state->hi = (uint32_t) ((ans >> 32) & 0xFFFFFFFF);
  		state->lo = (uint32_t) (ans & 0xFFFFFFFF);
  		break;
  	case 0x19: // MULTU
  		u_ans = (uint64_t) val_s * (uint64_t) val_t;
- 		if(state->debugLevel){fprintf(state->debugDest,
- 						"0x%08x * 0x%08x = 0x%lx\n",
-						val_s,val_t,u_ans);}
  		state->hi = (uint32_t) ((u_ans >> 32)) & 0xFFFFFFFF;
  		state->lo = (uint32_t) (u_ans & 0xFFFFFFFF);
  		break;
